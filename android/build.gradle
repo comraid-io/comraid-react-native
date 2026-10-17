@@ -1,0 +1,67 @@
+buildscript {
+  ext.ComraidReactNative = [
+    kotlinVersion: "2.0.21",
+    minSdkVersion: 24,
+    compileSdkVersion: 36,
+  ]
+
+  ext.getExtOrDefault = { prop ->
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : ComraidReactNative[prop]
+  }
+
+  repositories {
+    google()
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "com.android.tools.build:gradle:8.7.2"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault('kotlinVersion')}"
+  }
+}
+
+apply plugin: "com.android.library"
+
+if (project.extensions.findByName("kotlin") == null) {
+  apply plugin: "kotlin-android"
+}
+
+apply plugin: "com.facebook.react"
+
+def localNodeModules = file("../node_modules")
+if (file("../node_modules/react-native").exists()) {
+  react {
+    root = file("..")
+    reactNativeDir = file("../node_modules/react-native")
+    codegenDir = file("../node_modules/@react-native/codegen")
+  }
+}
+
+android {
+  namespace "com.comraide.reactnative"
+  compileSdkVersion getExtOrDefault("compileSdkVersion")
+
+  defaultConfig {
+    minSdkVersion getExtOrDefault("minSdkVersion")
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+
+  def localComraid = rootProject.findProject(":comraid")
+  if (localComraid != null) {
+    implementation localComraid
+  } else {
+    implementation "com.comraide:comraid:${findProperty('comraidAndroidVersion') ?: '0.1.0-SNAPSHOT'}"
+  }
+}

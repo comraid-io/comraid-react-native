@@ -1,0 +1,102 @@
+{
+  "name": "react-native-comraid",
+  "version": "0.1.0",
+  "description": "Comraid native notifications and timers for React Native and Expo",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "exports": {
+    ".": {
+      "react-native-comraid-source": "./src/index.ts",
+      "types": "./lib/typescript/src/index.d.ts",
+      "default": "./lib/module/index.js"
+    },
+    "./app.plugin.js": "./app.plugin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib",
+    "android",
+    "ios",
+    "plugin/build",
+    "app.plugin.js",
+    "*.podspec",
+    "react-native.config.js",
+    "README.md",
+    "LICENSE",
+    "!ios/build",
+    "!android/build",
+    "!android/.gradle"
+  ],
+  "scripts": {
+    "clean": "del-cli lib",
+    "prepare": "bob build",
+    "typecheck": "tsc",
+    "check": "npm run typecheck && npm run prepare && node --check app.plugin.js && node --check plugin/build/index.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "notifications",
+    "timers",
+    "ios",
+    "android"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/comraide/react-native-comraid.git"
+  },
+  "author": "Comraide <engineering@comraide.com> (https://github.com/comraide)",
+  "license": "MIT",
+  "homepage": "https://github.com/comraide/react-native-comraid#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "@expo/config-plugins": ">=9.0.0 <58.0.0",
+    "react": "*",
+    "react-native": ">=0.79"
+  },
+  "peerDependenciesMeta": {
+    "@expo/config-plugins": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@expo/config-plugins": "57.0.9",
+    "@react-native/babel-preset": "0.86.2",
+    "@types/react": "^19.2.0",
+    "del-cli": "^7.0.0",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-builder-bob": "^0.43.1",
+    "typescript": "^6.0.3"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      ["module", { "esm": true }],
+      ["typescript", { "project": "tsconfig.build.json" }]
+    ]
+  },
+  "codegenConfig": {
+    "name": "ComraidSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "ios": {
+      "modulesProvider": {
+        "Comraid": "RNComraid"
+      }
+    },
+    "android": {
+      "javaPackageName": "com.comraide.reactnative"
+    }
+  },
+  "prettier": {
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "all"
+  }
+}

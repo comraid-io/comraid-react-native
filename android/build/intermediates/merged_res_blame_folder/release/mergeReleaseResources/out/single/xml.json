@@ -1,0 +1,6 @@
+[
+    {
+        "merged": "com.comraide.reactnative.adapter-release-29:/xml/rn_dev_preferences.xml",
+        "source": "com.comraide.reactnative.adapter-react-android-0.86.3-release-16:/xml/rn_dev_preferences.xml"
+    }
+]

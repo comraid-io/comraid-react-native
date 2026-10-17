@@ -1,0 +1,165 @@
+#import "RNComraid.h"
+@import Comraid;
+
+static NSDictionary *RNComraidData(NSString *json, NSError **error)
+{
+  NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+  id value = [NSJSONSerialization JSONObjectWithData:data options:0 error:error];
+  if (![value isKindOfClass:[NSDictionary class]]) {
+    if (error && !*error) {
+      *error = [NSError errorWithDomain:@"Comraid"
+                                   code:2001
+                               userInfo:@{NSLocalizedDescriptionKey: @"Notification data must encode a JSON object"}];
+    }
+    return nil;
+  }
+  return value;
+}
+
+static void RNComraidReject(NSError *error, RCTPromiseRejectBlock reject)
+{
+  NSString *code = error.domain.length > 0 ? error.domain : @"COMRAID_ERROR";
+  reject(code, error.localizedDescription, error);
+}
+
+@implementation RNComraid
+
+RCT_EXPORT_MODULE(Comraid)
+
+- (void)configure:(NSString *)defaultChannelId
+defaultChannelName:(NSString *)defaultChannelName
+smallIconResourceName:(NSString *)smallIconResourceName
+ storageSuiteName:(NSString *)storageSuiteName
+          resolve:(RCTPromiseResolveBlock)resolve
+           reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *suite = storageSuiteName.length > 0 ? storageSuiteName : nil;
+  [[ComraidBridge shared] configureWithStorageSuiteName:suite completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)getCapabilities:(RCTPromiseResolveBlock)resolve
+                 reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] capabilitiesWithCompletion:^(NSDictionary *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value);
+    }
+  }];
+}
+
+- (void)requestNotificationPermission:(RCTPromiseResolveBlock)resolve
+                                reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] requestNotificationPermissionWithCompletion:^(BOOL granted, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(@(granted));
+    }
+  }];
+}
+
+- (void)schedule:(NSString *)id
+           title:(NSString *)title
+            body:(NSString *)body
+ triggerAtMillis:(double)triggerAtMillis
+       precision:(NSString *)precision
+  fallbackPolicy:(NSString *)fallbackPolicy
+        dataJson:(NSString *)dataJson
+         resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject
+{
+  NSError *parseError = nil;
+  NSDictionary *userInfo = RNComraidData(dataJson, &parseError);
+  if (parseError) {
+    RNComraidReject(parseError, reject);
+    return;
+  }
+  [[ComraidBridge shared] scheduleWithId:id
+                                   title:title
+                                    body:body
+                         triggerAtMillis:triggerAtMillis
+                      requestedPrecision:precision
+                          fallbackPolicy:fallbackPolicy
+                                userInfo:userInfo
+                              completion:^(NSDictionary *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value);
+    }
+  }];
+}
+
+- (void)startTimer:(NSString *)id
+             title:(NSString *)title
+              body:(NSString *)body
+    durationMillis:(double)durationMillis
+         precision:(NSString *)precision
+    fallbackPolicy:(NSString *)fallbackPolicy
+          dataJson:(NSString *)dataJson
+           resolve:(RCTPromiseResolveBlock)resolve
+            reject:(RCTPromiseRejectBlock)reject
+{
+  NSError *parseError = nil;
+  NSDictionary *userInfo = RNComraidData(dataJson, &parseError);
+  if (parseError) {
+    RNComraidReject(parseError, reject);
+    return;
+  }
+  [[ComraidBridge shared] startTimerWithId:id
+                                     title:title
+                                      body:body
+                            durationMillis:durationMillis
+                        requestedPrecision:precision
+                            fallbackPolicy:fallbackPolicy
+                                  userInfo:userInfo
+                                completion:^(NSDictionary *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value);
+    }
+  }];
+}
+
+- (void)cancel:(NSString *)id
+       resolve:(RCTPromiseResolveBlock)resolve
+        reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] cancelWithId:id completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)pendingSchedules:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] pendingSchedulesWithCompletion:^(NSArray *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value);
+    }
+  }];
+}
+
+- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+    (const facebook::react::ObjCTurboModule::InitParams &)params
+{
+  return std::make_shared<facebook::react::NativeComraidSpecJSI>(params);
+}
+
+@end
