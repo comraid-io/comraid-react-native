@@ -2,14 +2,21 @@ import NativeComraid, { type NativeScheduleResult } from './NativeComraid';
 
 export type SchedulePrecision = 'inexact' | 'exact';
 export type FallbackPolicy = 'fail' | 'useInexact';
+export type APNsEnvironment = 'sandbox' | 'production';
 
 export interface ConfigureOptions {
+	/** Publishable App ID (`cr_app_…`). Required. */
+	appId: string;
+	/** Optional API base; defaults to https://api.comraid.io on native. */
+	apiBaseURL?: string;
 	android?: {
 		defaultChannelId?: string;
 		defaultChannelName?: string;
 		smallIconResourceName?: string;
 	};
 	ios?: {
+		/** Required on iOS. */
+		apnsEnvironment: APNsEnvironment;
 		storageSuiteName?: string;
 	};
 }
@@ -87,13 +94,28 @@ function result(value: NativeScheduleResult): ScheduleResult {
 }
 
 export const Comraid = {
-	async configure(options: ConfigureOptions = {}): Promise<void> {
+	/**
+	 * Stores settings on the native SDKs. Does not register a Subscription yet —
+	 * call `requestNotificationPermission` / `register` after permission is granted.
+	 */
+	async initialize(options: ConfigureOptions): Promise<void> {
+		if (!options.appId?.trim()) {
+			throw new TypeError('appId is required (cr_app_…)');
+		}
 		await nativeModule().configure(
+			options.appId.trim(),
+			options.apiBaseURL ?? '',
+			options.ios?.apnsEnvironment ?? '',
 			options.android?.defaultChannelId ?? '',
 			options.android?.defaultChannelName ?? '',
 			options.android?.smallIconResourceName ?? '',
 			options.ios?.storageSuiteName ?? '',
 		);
+	},
+
+	/** @deprecated Prefer `initialize`. */
+	async configure(options: ConfigureOptions): Promise<void> {
+		return Comraid.initialize(options);
 	},
 
 	async getCapabilities(): Promise<Capabilities> {
@@ -102,6 +124,27 @@ export const Comraid = {
 
 	async requestNotificationPermission(): Promise<boolean> {
 		return nativeModule().requestNotificationPermission();
+	},
+
+	async register(): Promise<void> {
+		await nativeModule().register();
+	},
+
+	async login(externalUserId: string, identityToken?: string): Promise<void> {
+		if (!externalUserId.trim()) throw new TypeError('externalUserId must not be empty');
+		await nativeModule().login(externalUserId.trim(), identityToken ?? '');
+	},
+
+	async logout(): Promise<void> {
+		await nativeModule().logout();
+	},
+
+	async optIn(): Promise<void> {
+		await nativeModule().optIn();
+	},
+
+	async optOut(): Promise<void> {
+		await nativeModule().optOut();
 	},
 
 	async schedule(options: ScheduleOptions): Promise<ScheduleResult> {

@@ -1,8 +1,10 @@
 package com.comraide.reactnative
 
 import android.Manifest
-import android.os.Build
 import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.comraide.android.Comraid
 import com.comraide.android.ComraidConfiguration
 import com.comraide.android.ComraidNotification
@@ -22,12 +24,16 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   private var permissionPromise: Promise? = null
 
   override fun configure(
+    appId: String,
+    apiBaseURL: String,
+    apnsEnvironment: String,
     defaultChannelId: String,
     defaultChannelName: String,
     smallIconResourceName: String,
     storageSuiteName: String,
     promise: Promise,
   ) = resolve(promise) {
+    require(appId.isNotBlank()) { "appId is required (cr_app_…)" }
     val metadata = reactContext.packageManager.getApplicationInfo(
       reactContext.packageName,
       PackageManager.GET_META_DATA,
@@ -48,6 +54,8 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     Comraid.configure(
       reactContext,
       ComraidConfiguration(
+        appId = appId.trim(),
+        apiBaseUrl = apiBaseURL.ifBlank { ComraidConfiguration.DEFAULT_API_BASE_URL },
         defaultChannelId = channelId,
         defaultChannelName = channelName,
         smallIconResourceId = icon,
@@ -67,8 +75,20 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   }
 
   override fun requestNotificationPermission(promise: Promise) {
+    val notificationsEnabled = NotificationManagerCompat.from(reactContext).areNotificationsEnabled()
+    val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+      ContextCompat.checkSelfPermission(reactContext, Manifest.permission.POST_NOTIFICATIONS) ==
+      PackageManager.PERMISSION_GRANTED
+
+    if (permissionGranted && notificationsEnabled) {
+      resolve(promise) {
+        Comraid.register()
+        true
+      }
+      return
+    }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-      promise.resolve(true)
+      promise.resolve(false)
       return
     }
     val activity = reactContext.getCurrentActivity() as? PermissionAwareActivity
@@ -88,6 +108,34 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     )
   }
 
+  override fun register(promise: Promise) = resolve(promise) {
+    Comraid.register()
+    null
+  }
+
+  override fun login(externalUserId: String, identityToken: String, promise: Promise) = resolve(promise) {
+    Comraid.login(
+      externalUserId,
+      identityToken = identityToken.takeIf { it.isNotBlank() },
+    )
+    null
+  }
+
+  override fun logout(promise: Promise) = resolve(promise) {
+    Comraid.logout()
+    null
+  }
+
+  override fun optIn(promise: Promise) = resolve(promise) {
+    Comraid.optIn()
+    null
+  }
+
+  override fun optOut(promise: Promise) = resolve(promise) {
+    Comraid.optOut()
+    null
+  }
+
   override fun onRequestPermissionsResult(
     requestCode: Int,
     permissions: Array<String>,
@@ -95,8 +143,18 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   ): Boolean {
     if (requestCode != PERMISSION_REQUEST_CODE) return false
     val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
-    permissionPromise?.resolve(granted)
+    val promise = permissionPromise
     permissionPromise = null
+    if (granted && NotificationManagerCompat.from(reactContext).areNotificationsEnabled()) {
+      try {
+        Comraid.register()
+        promise?.resolve(true)
+      } catch (error: Throwable) {
+        promise?.reject("COMRAID_ERROR", error.message, error)
+      }
+    } else {
+      promise?.resolve(false)
+    }
     return true
   }
 

@@ -24,12 +24,20 @@ export type NativePendingSchedule = {
 
 export interface Spec extends TurboModule {
 	configure(
+		appId: string,
+		apiBaseURL: string,
+		apnsEnvironment: string,
 		defaultChannelId: string,
 		defaultChannelName: string,
 		smallIconResourceName: string,
 		storageSuiteName: string,
 	): Promise<void>;
 	requestNotificationPermission(): Promise<boolean>;
+	register(): Promise<void>;
+	login(externalUserId: string, identityToken: string): Promise<void>;
+	logout(): Promise<void>;
+	optIn(): Promise<void>;
+	optOut(): Promise<void>;
 	getCapabilities(): Promise<NativeCapabilities>;
 	schedule(
 		id: string,

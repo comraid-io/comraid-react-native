@@ -26,15 +26,31 @@ static void RNComraidReject(NSError *error, RCTPromiseRejectBlock reject)
 
 RCT_EXPORT_MODULE(Comraid)
 
-- (void)configure:(NSString *)defaultChannelId
+- (void)configure:(NSString *)appId
+      apiBaseURL:(NSString *)apiBaseURL
+ apnsEnvironment:(NSString *)apnsEnvironment
+defaultChannelId:(NSString *)defaultChannelId
 defaultChannelName:(NSString *)defaultChannelName
 smallIconResourceName:(NSString *)smallIconResourceName
  storageSuiteName:(NSString *)storageSuiteName
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
+  if (appId.length == 0) {
+    reject(@"COMRAID_ERROR", @"appId is required (cr_app_…)", nil);
+    return;
+  }
+  if (apnsEnvironment.length == 0) {
+    reject(@"COMRAID_ERROR", @"ios.apnsEnvironment is required (sandbox or production)", nil);
+    return;
+  }
   NSString *suite = storageSuiteName.length > 0 ? storageSuiteName : nil;
-  [[ComraidBridge shared] configureWithStorageSuiteName:suite completion:^(NSError *error) {
+  NSString *base = apiBaseURL.length > 0 ? apiBaseURL : nil;
+  [[ComraidBridge shared] configureWithAppId:appId
+                                  apiBaseURL:base
+                             apnsEnvironment:apnsEnvironment
+                            storageSuiteName:suite
+                                  completion:^(NSError *error) {
     if (error) {
       RNComraidReject(error, reject);
     } else {
@@ -63,6 +79,71 @@ smallIconResourceName:(NSString *)smallIconResourceName
       RNComraidReject(error, reject);
     } else {
       resolve(@(granted));
+    }
+  }];
+}
+
+- (void)register:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] registerWithCompletion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)login:(NSString *)externalUserId
+identityToken:(NSString *)identityToken
+      resolve:(RCTPromiseResolveBlock)resolve
+       reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *token = identityToken.length > 0 ? identityToken : nil;
+  [[ComraidBridge shared] loginWithExternalUserId:externalUserId
+                                    identityToken:token
+                                       completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)logout:(RCTPromiseResolveBlock)resolve
+        reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] logoutWithCompletion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)optIn:(RCTPromiseResolveBlock)resolve
+       reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] optInWithCompletion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)optOut:(RCTPromiseResolveBlock)resolve
+        reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] optOutWithCompletion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
     }
   }];
 }
