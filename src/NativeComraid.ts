@@ -34,7 +34,7 @@ export interface Spec extends TurboModule {
 	): Promise<void>;
 	requestNotificationPermission(): Promise<boolean>;
 	register(): Promise<void>;
-	login(externalUserId: string, identityToken: string): Promise<void>;
+	login(externalUserId: string, jwt: string): Promise<void>;
 	logout(): Promise<void>;
 	optIn(): Promise<void>;
 	optOut(): Promise<void>;

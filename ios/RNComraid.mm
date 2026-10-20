@@ -96,13 +96,13 @@ smallIconResourceName:(NSString *)smallIconResourceName
 }
 
 - (void)login:(NSString *)externalUserId
-identityToken:(NSString *)identityToken
+          jwt:(NSString *)jwt
       resolve:(RCTPromiseResolveBlock)resolve
        reject:(RCTPromiseRejectBlock)reject
 {
-  NSString *token = identityToken.length > 0 ? identityToken : nil;
+  NSString *token = jwt.length > 0 ? jwt : nil;
   [[ComraidBridge shared] loginWithExternalUserId:externalUserId
-                                    identityToken:token
+                                              jwt:token
                                        completion:^(NSError *error) {
     if (error) {
       RNComraidReject(error, reject);

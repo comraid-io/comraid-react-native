@@ -113,10 +113,10 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     null
   }
 
-  override fun login(externalUserId: String, identityToken: String, promise: Promise) = resolve(promise) {
+  override fun login(externalUserId: String, jwt: String, promise: Promise) = resolve(promise) {
     Comraid.login(
       externalUserId,
-      identityToken = identityToken.takeIf { it.isNotBlank() },
+      jwt = jwt.takeIf { it.isNotBlank() },
     )
     null
   }

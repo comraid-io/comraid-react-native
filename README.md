@@ -33,7 +33,7 @@ const granted = await Comraid.requestNotificationPermission();
 await Comraid.register();
 
 await Comraid.login('user_123');
-await Comraid.login('user_123', jwtFromYourBackend);
+await Comraid.login('user_123', jwtFromYourBackend); // Identity verification JWT
 
 await Comraid.logout(); // Subscription becomes Inactive
 await Comraid.optOut(); // Contact Opted out of push (all Subscriptions)

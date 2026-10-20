@@ -130,9 +130,9 @@ export const Comraid = {
 		await nativeModule().register();
 	},
 
-	async login(externalUserId: string, identityToken?: string): Promise<void> {
+	async login(externalUserId: string, jwt?: string): Promise<void> {
 		if (!externalUserId.trim()) throw new TypeError('externalUserId must not be empty');
-		await nativeModule().login(externalUserId.trim(), identityToken ?? '');
+		await nativeModule().login(externalUserId.trim(), jwt ?? '');
 	},
 
 	async logout(): Promise<void> {
