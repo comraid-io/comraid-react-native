@@ -62,6 +62,16 @@ export interface PendingSchedule {
 	triggerAt: Date;
 }
 
+/** Subscription (device) Properties sent on the next register / token refresh. */
+export interface DeviceProperties {
+	appVersion?: string;
+	model?: string;
+	osVersion?: string;
+	extras?: Readonly<Record<string, unknown>>;
+}
+
+export type ContactAttributes = Readonly<Record<string, string | number | boolean | null>>;
+
 function nativeModule() {
 	if (!NativeComraid) {
 		throw new Error(
@@ -145,6 +155,56 @@ export const ComRaid = {
 
 	async optOut(): Promise<void> {
 		await nativeModule().optOut();
+	},
+
+	/**
+	 * Persist Subscription device Properties for the next register / token refresh.
+	 * Android: forwarded to `ComRaid.setDeviceProperties`. iOS: requires T18 native APIs.
+	 */
+	async setDeviceProperties(properties: DeviceProperties): Promise<void> {
+		const extras = properties.extras ?? {};
+		if (extras != null && (typeof extras !== 'object' || Array.isArray(extras))) {
+			throw new TypeError('device properties extras must be a plain object');
+		}
+		await nativeModule().setDeviceProperties(
+			properties.appVersion ?? '',
+			properties.model ?? '',
+			properties.osVersion ?? '',
+			JSON.stringify(extras),
+		);
+	},
+
+	/**
+	 * Upsert Contact Attributes for the logged-in `external_user_id`.
+	 * Android: forwarded to `ComRaid.setAttributes`. iOS: requires T18 native APIs.
+	 */
+	async setAttributes(attributes: ContactAttributes): Promise<void> {
+		if (attributes == null || typeof attributes !== 'object' || Array.isArray(attributes)) {
+			throw new TypeError('attributes must be a plain object');
+		}
+		if (Object.keys(attributes).length === 0) {
+			throw new TypeError('attributes must not be empty');
+		}
+		await nativeModule().setAttributes(JSON.stringify(attributes));
+	},
+
+	/** Enqueue + flush a delivered ACK. Returns false when ids are blank. */
+	async acknowledgeDelivered(deliveryId: string, attributionToken: string): Promise<boolean> {
+		return nativeModule().acknowledgeDelivered(deliveryId, attributionToken);
+	},
+
+	/** Enqueue + flush an opened ACK (optional action button id). */
+	async acknowledgeOpened(
+		deliveryId: string,
+		attributionToken: string,
+		actionId?: string,
+	): Promise<boolean> {
+		return nativeModule().acknowledgeOpened(deliveryId, attributionToken, actionId ?? '');
+	},
+
+	/** Flush any durable ACK backlog. */
+	async flushAcks(): Promise<void> {
+		await nativeModule().flushAcks();
 	},
 
 	async schedule(options: ScheduleOptions): Promise<ScheduleResult> {

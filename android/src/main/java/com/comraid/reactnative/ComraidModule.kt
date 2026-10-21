@@ -9,6 +9,7 @@ import com.comraid.android.ComRaid
 import com.comraid.android.ComRaidConfiguration
 import com.comraid.android.ComRaidNotification
 import com.comraid.android.ComRaidScheduleRequest
+import com.comraid.android.DeviceProperties
 import com.comraid.android.FallbackPolicy
 import com.comraid.android.SchedulePrecision
 import com.facebook.react.bridge.Arguments
@@ -16,6 +17,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
+import org.json.JSONArray
 import org.json.JSONObject
 
 class ComraidModule(private val reactContext: ReactApplicationContext) :
@@ -136,6 +138,57 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     null
   }
 
+  override fun setDeviceProperties(
+    appVersion: String,
+    model: String,
+    osVersion: String,
+    extrasJson: String,
+    promise: Promise,
+  ) = resolve(promise) {
+    ComRaid.setDeviceProperties(
+      DeviceProperties(
+        appVersion = appVersion.takeIf { it.isNotBlank() },
+        model = model.takeIf { it.isNotBlank() },
+        osVersion = osVersion.takeIf { it.isNotBlank() },
+        extras = jsonObjectToMap(JSONObject(extrasJson.ifBlank { "{}" })),
+      ),
+    )
+    null
+  }
+
+  override fun setAttributes(attributesJson: String, promise: Promise) = resolve(promise) {
+    val json = JSONObject(attributesJson)
+    require(json.length() > 0) { "attributes must not be empty" }
+    ComRaid.setAttributes(jsonObjectToMap(json))
+    null
+  }
+
+  override fun acknowledgeDelivered(
+    deliveryId: String,
+    attributionToken: String,
+    promise: Promise,
+  ) = resolve(promise) {
+    ComRaid.acknowledgeDelivered(deliveryId, attributionToken)
+  }
+
+  override fun acknowledgeOpened(
+    deliveryId: String,
+    attributionToken: String,
+    actionId: String,
+    promise: Promise,
+  ) = resolve(promise) {
+    ComRaid.acknowledgeOpened(
+      deliveryId,
+      attributionToken,
+      actionId = actionId.takeIf { it.isNotBlank() },
+    )
+  }
+
+  override fun flushAcks(promise: Promise) = resolve(promise) {
+    ComRaid.flushAcks()
+    null
+  }
+
   override fun onRequestPermissionsResult(
     requestCode: Int,
     permissions: Array<String>,
@@ -224,6 +277,19 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       json.keys().forEach { key -> put(key, json.getString(key)) }
     }
     return ComRaidNotification(id = id, title = title, body = body, data = data)
+  }
+
+  private fun jsonObjectToMap(json: JSONObject): Map<String, Any?> = buildMap {
+    json.keys().forEach { key ->
+      put(key, jsonValue(json.get(key)))
+    }
+  }
+
+  private fun jsonValue(value: Any?): Any? = when (value) {
+    JSONObject.NULL, null -> null
+    is JSONObject -> jsonObjectToMap(value)
+    is JSONArray -> (0 until value.length()).map { jsonValue(value.get(it)) }
+    else -> value
   }
 
   private fun precision(value: String) = when (value) {
