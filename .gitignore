@@ -77,3 +77,4 @@ project.xcworkspace
 # Misc generated
 *.tgz
 .turbo/
+.worktrees/
