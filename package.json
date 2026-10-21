@@ -32,7 +32,8 @@
     "clean": "del-cli lib",
     "prepare": "bob build",
     "typecheck": "tsc",
-    "check": "npm run typecheck && npm run prepare && node --check app.plugin.js && node --check plugin/build/index.js && node scripts/check-naming.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "npm run typecheck && npm run prepare && node --check app.plugin.js && node --check plugin/build/index.js && node --check plugin/build/android-ios-helpers.js && node scripts/check-naming.mjs && npm test",
     "check:naming": "node scripts/check-naming.mjs",
     "pack:check": "npm pack --dry-run"
   },

@@ -38,6 +38,20 @@ export interface Spec extends TurboModule {
 	logout(): Promise<void>;
 	optIn(): Promise<void>;
 	optOut(): Promise<void>;
+	setDeviceProperties(
+		appVersion: string,
+		model: string,
+		osVersion: string,
+		extrasJson: string,
+	): Promise<void>;
+	setAttributes(attributesJson: string): Promise<void>;
+	acknowledgeDelivered(deliveryId: string, attributionToken: string): Promise<boolean>;
+	acknowledgeOpened(
+		deliveryId: string,
+		attributionToken: string,
+		actionId: string,
+	): Promise<boolean>;
+	flushAcks(): Promise<void>;
 	getCapabilities(): Promise<NativeCapabilities>;
 	schedule(
 		id: string,

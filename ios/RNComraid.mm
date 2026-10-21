@@ -148,6 +148,56 @@ smallIconResourceName:(NSString *)smallIconResourceName
   }];
 }
 
+- (void)setDeviceProperties:(NSString *)appVersion
+                      model:(NSString *)model
+                  osVersion:(NSString *)osVersion
+                 extrasJson:(NSString *)extrasJson
+                    resolve:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+  reject(@"COMRAID_UNSUPPORTED",
+         @"setDeviceProperties requires the iOS ComRaid SDK attribute APIs (T18)",
+         nil);
+}
+
+- (void)setAttributes:(NSString *)attributesJson
+              resolve:(RCTPromiseResolveBlock)resolve
+               reject:(RCTPromiseRejectBlock)reject
+{
+  reject(@"COMRAID_UNSUPPORTED",
+         @"setAttributes requires the iOS ComRaid SDK attribute APIs (T18)",
+         nil);
+}
+
+- (void)acknowledgeDelivered:(NSString *)deliveryId
+           attributionToken:(NSString *)attributionToken
+                    resolve:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+  reject(@"COMRAID_UNSUPPORTED",
+         @"acknowledgeDelivered requires the iOS ComRaid SDK ACK APIs (T18)",
+         nil);
+}
+
+- (void)acknowledgeOpened:(NSString *)deliveryId
+        attributionToken:(NSString *)attributionToken
+                actionId:(NSString *)actionId
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject
+{
+  reject(@"COMRAID_UNSUPPORTED",
+         @"acknowledgeOpened requires the iOS ComRaid SDK ACK APIs (T18)",
+         nil);
+}
+
+- (void)flushAcks:(RCTPromiseResolveBlock)resolve
+           reject:(RCTPromiseRejectBlock)reject
+{
+  reject(@"COMRAID_UNSUPPORTED",
+         @"flushAcks requires the iOS ComRaid SDK ACK APIs (T18)",
+         nil);
+}
+
 - (void)schedule:(NSString *)id
            title:(NSString *)title
             body:(NSString *)body
