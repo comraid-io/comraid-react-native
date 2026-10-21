@@ -1,7 +1,7 @@
 {
-  "name": "@comraid/react-native",
+  "name": "react-native-comraid",
   "version": "0.1.0",
-  "description": "ComRaid native notifications and timers for React Native and Expo",
+  "description": "Deprecated alias for @comraid/react-native",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -11,16 +11,8 @@
     },
     "./package.json": "./package.json"
   },
-  "files": [
-    "src",
-    "README.md"
-  ],
-  "keywords": [
-    "comraid",
-    "react-native",
-    "expo",
-    "notifications"
-  ],
+  "files": ["src", "README.md"],
+  "keywords": ["comraid", "react-native"],
   "license": "MIT",
   "peerDependencies": {
     "react": "*",

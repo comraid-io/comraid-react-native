@@ -1,5 +1,5 @@
 #import "RNComraid.h"
-@import Comraid;
+@import ComRaid;
 
 static NSDictionary *RNComraidData(NSString *json, NSError **error)
 {
