@@ -38,7 +38,7 @@ if (file("../node_modules/react-native").exists()) {
 }
 
 android {
-  namespace "com.comraide.reactnative"
+  namespace "com.comraid.reactnative"
   compileSdkVersion getExtOrDefault("compileSdkVersion")
 
   defaultConfig {
@@ -62,6 +62,6 @@ dependencies {
   if (localComraid != null) {
     implementation localComraid
   } else {
-    implementation "com.comraide:comraid:${findProperty('comraidAndroidVersion') ?: '0.1.0-SNAPSHOT'}"
+    implementation "com.comraid:comraid:${findProperty('comraidAndroidVersion') ?: '0.1.0-SNAPSHOT'}"
   }
 }

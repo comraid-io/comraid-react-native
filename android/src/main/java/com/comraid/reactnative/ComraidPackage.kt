@@ -1,4 +1,4 @@
-package com.comraide.reactnative
+package com.comraid.reactnative
 
 import com.facebook.react.BaseReactPackage
 import com.facebook.react.bridge.NativeModule

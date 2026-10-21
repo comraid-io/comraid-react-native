@@ -1,6 +1,6 @@
-# react-native-comraid
+# `/react-native`
 
-Thin TurboModule bridge over the Comraid Android and Apple SDKs (ADR 0004). Identity and HTTP live only in the native SDKs; JavaScript forwards arguments. Vocabulary: **Subscription**, `external_user_id`, Identity verification **JWT** (`login(externalUserId, jwt)`). Server-side sends use **Message** / **Notification**, **Campaign**, **Single send**, **Broadcast**, and **Multi-send**.
+Thin TurboModule bridge over the ComRaid Android and Apple SDKs (ADR 0004). Identity and HTTP live only in the native SDKs; JavaScript forwards arguments. Vocabulary: **Subscription**, `external_user_id`, Identity verification **JWT** (`login(externalUserId, jwt)`). Server-side sends use **Message** / **Notification**, **Campaign**, **Single send**, **Broadcast**, and **Multi-send**.
 
 ## Requirements
 
@@ -14,9 +14,9 @@ Thin TurboModule bridge over the Comraid Android and Apple SDKs (ADR 0004). Iden
 ## Identity loop
 
 ```ts
-import { Comraid } from 'react-native-comraid';
+import { ComRaid } from '/react-native';
 
-await Comraid.initialize({
+await ComRaid.initialize({
   appId: 'cr_app_your_id',
   // apiBaseURL: 'http://localhost:8080',
   android: {
@@ -27,17 +27,17 @@ await Comraid.initialize({
   },
 });
 
-const granted = await Comraid.requestNotificationPermission();
+const granted = await ComRaid.requestNotificationPermission();
 // Android registers on grant. On iOS, forward the APNs token in native AppDelegate
 // via ComraidBridge.setAPNsDeviceToken, then:
-await Comraid.register();
+await ComRaid.register();
 
-await Comraid.login('user_123');
-await Comraid.login('user_123', jwtFromYourBackend); // Identity verification JWT
+await ComRaid.login('user_123');
+await ComRaid.login('user_123', jwtFromYourBackend); // Identity verification JWT
 
-await Comraid.logout(); // Subscription becomes Inactive
-await Comraid.optOut(); // Contact Opted out of push (all Subscriptions)
-await Comraid.optIn();
+await ComRaid.logout(); // Subscription becomes Inactive
+await ComRaid.optOut(); // Contact Opted out of push (all Subscriptions)
+await ComRaid.optIn();
 ```
 
 Logout means Inactive (Endpoint state). Opt-out is Contact × Channel and independent of Inactive — not OneSignal-style subscription-only mute.
@@ -47,7 +47,7 @@ Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (
 ## Local timers
 
 ```ts
-const timer = await Comraid.startTimer({
+const timer = await ComRaid.startTimer({
   notification: {
     id: 'focus-1',
     title: 'Focus complete',

@@ -1,7 +1,7 @@
 {
-  "name": "react-native-comraid",
+  "name": "@comraid/react-native",
   "version": "0.1.0",
-  "description": "Comraid native notifications and timers for React Native and Expo",
+  "description": "ComRaid native notifications and timers for React Native and Expo",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -46,11 +46,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/comraide/react-native-comraid.git"
+    "url": "git+https://github.com/comraid-io/comraid-react-native.git"
   },
-  "author": "Comraide <engineering@comraide.com> (https://github.com/comraide)",
+  "author": "ComRaid <engineering@comraid.io> (https://github.com/comraid-io)",
   "license": "MIT",
-  "homepage": "https://github.com/comraide/react-native-comraid#readme",
+  "homepage": "https://github.com/comraid-io/comraid-react-native#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
@@ -78,8 +78,18 @@
     "source": "src",
     "output": "lib",
     "targets": [
-      ["module", { "esm": true }],
-      ["typescript", { "project": "tsconfig.build.json" }]
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
     ]
   },
   "codegenConfig": {
@@ -92,7 +102,7 @@
       }
     },
     "android": {
-      "javaPackageName": "com.comraide.reactnative"
+      "javaPackageName": "com.comraid.reactnative"
     }
   },
   "prettier": {
