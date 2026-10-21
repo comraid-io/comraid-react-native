@@ -65,7 +65,7 @@ export interface PendingSchedule {
 function nativeModule() {
 	if (!NativeComraid) {
 		throw new Error(
-			'react-native-comraid is not linked. Rebuild the native app; Expo Go cannot load this module.',
+			'@comraid/react-native is not linked. Rebuild the native app; Expo Go cannot load this module.',
 		);
 	}
 	return NativeComraid;
@@ -93,7 +93,7 @@ function result(value: NativeScheduleResult): ScheduleResult {
 	};
 }
 
-export const Comraid = {
+export const ComRaid = {
 	/**
 	 * Stores settings on the native SDKs. Does not register a Subscription yet —
 	 * call `requestNotificationPermission` / `register` after permission is granted.
@@ -115,7 +115,7 @@ export const Comraid = {
 
 	/** @deprecated Prefer `initialize`. */
 	async configure(options: ConfigureOptions): Promise<void> {
-		return Comraid.initialize(options);
+		return ComRaid.initialize(options);
 	},
 
 	async getCapabilities(): Promise<Capabilities> {
@@ -195,4 +195,4 @@ export const Comraid = {
 	},
 };
 
-export default Comraid;
+export default ComRaid;

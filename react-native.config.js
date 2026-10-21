@@ -2,7 +2,7 @@ module.exports = {
 	dependency: {
 		platforms: {
 			android: {
-				packageImportPath: 'import com.comraide.reactnative.ComraidPackage;',
+				packageImportPath: 'import com.comraid.reactnative.ComraidPackage;',
 				packageInstance: 'new ComraidPackage()',
 			},
 		},
