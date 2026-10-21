@@ -39,13 +39,13 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       PackageManager.GET_META_DATA,
     ).metaData
     val channelId = defaultChannelId.ifBlank {
-      metadataString(metadata, META_CHANNEL_ID, LEGACY_META_CHANNEL_ID) ?: "comraid.general"
+      metadata?.getString(META_CHANNEL_ID) ?: "comraid.general"
     }
     val channelName = defaultChannelName.ifBlank {
-      metadataString(metadata, META_CHANNEL_NAME, LEGACY_META_CHANNEL_NAME) ?: "General"
+      metadata?.getString(META_CHANNEL_NAME) ?: "General"
     }
     val iconName = smallIconResourceName.ifBlank {
-      metadataString(metadata, META_SMALL_ICON, LEGACY_META_SMALL_ICON) ?: "ic_launcher"
+      metadata?.getString(META_SMALL_ICON) ?: "ic_launcher"
     }
     val icon = reactContext.resources.getIdentifier(iconName, "drawable", reactContext.packageName)
       .takeIf { it != 0 }
@@ -259,15 +259,6 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     private const val META_CHANNEL_ID = "com.comraid.DEFAULT_CHANNEL_ID"
     private const val META_CHANNEL_NAME = "com.comraid.DEFAULT_CHANNEL_NAME"
     private const val META_SMALL_ICON = "com.comraid.SMALL_ICON_RESOURCE"
-    private const val LEGACY_META_CHANNEL_ID = "com.comraide.DEFAULT_CHANNEL_ID"
-    private const val LEGACY_META_CHANNEL_NAME = "com.comraide.DEFAULT_CHANNEL_NAME"
-    private const val LEGACY_META_SMALL_ICON = "com.comraide.SMALL_ICON_RESOURCE"
     private const val PERMISSION_REQUEST_CODE = 43_117
-
-    private fun metadataString(
-      metadata: android.os.Bundle?,
-      key: String,
-      legacyKey: String,
-    ): String? = metadata?.getString(key) ?: metadata?.getString(legacyKey)
   }
 }
