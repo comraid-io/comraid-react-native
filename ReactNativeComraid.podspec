@@ -17,12 +17,12 @@ Pod::Spec.new do |spec|
   spec.authors = package["author"]
   spec.platforms = { :ios => "15.0" }
   spec.source = {
-    :git => "https://github.com/comraide/react-native-comraid.git",
+    :git => "https://github.com/comraid-io/comraid-react-native.git",
     :tag => spec.version.to_s,
   }
   spec.source_files = "ios/**/*.{h,m,mm,swift,cpp}"
   spec.private_header_files = "ios/**/*.h"
-  spec.dependency "Comraid", "~> 0.1.0"
+  spec.dependency "ComRaid", "~> 0.1.0"
   spec.pod_target_xcconfig = {
     "DEFINES_MODULE" => "YES",
     "CLANG_ENABLE_MODULES" => "YES",

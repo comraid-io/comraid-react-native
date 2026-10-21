@@ -1,16 +1,16 @@
-package com.comraide.reactnative
+package com.comraid.reactnative
 
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import com.comraide.android.Comraid
-import com.comraide.android.ComraidConfiguration
-import com.comraide.android.ComraidNotification
-import com.comraide.android.ComraidScheduleRequest
-import com.comraide.android.FallbackPolicy
-import com.comraide.android.SchedulePrecision
+import com.comraid.android.ComRaid
+import com.comraid.android.ComRaidConfiguration
+import com.comraid.android.ComRaidNotification
+import com.comraid.android.ComRaidScheduleRequest
+import com.comraid.android.FallbackPolicy
+import com.comraid.android.SchedulePrecision
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -51,11 +51,11 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       .takeIf { it != 0 }
       ?: reactContext.resources.getIdentifier(iconName, "mipmap", reactContext.packageName)
     require(icon != 0) { "Android notification icon '$iconName' was not found" }
-    Comraid.configure(
+    ComRaid.configure(
       reactContext,
-      ComraidConfiguration(
+      ComRaidConfiguration(
         appId = appId.trim(),
-        apiBaseUrl = apiBaseURL.ifBlank { ComraidConfiguration.DEFAULT_API_BASE_URL },
+        apiBaseUrl = apiBaseURL.ifBlank { ComRaidConfiguration.DEFAULT_API_BASE_URL },
         defaultChannelId = channelId,
         defaultChannelName = channelName,
         smallIconResourceId = icon,
@@ -65,7 +65,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   }
 
   override fun getCapabilities(promise: Promise) = resolve(promise) {
-    val value = Comraid.capabilities(reactContext)
+    val value = ComRaid.capabilities(reactContext)
     Arguments.createMap().apply {
       putString("platform", "android")
       putBoolean("notificationsEnabled", value.notificationsEnabled)
@@ -82,7 +82,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
 
     if (permissionGranted && notificationsEnabled) {
       resolve(promise) {
-        Comraid.register()
+        ComRaid.register()
         true
       }
       return
@@ -109,12 +109,12 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   }
 
   override fun register(promise: Promise) = resolve(promise) {
-    Comraid.register()
+    ComRaid.register()
     null
   }
 
   override fun login(externalUserId: String, jwt: String, promise: Promise) = resolve(promise) {
-    Comraid.login(
+    ComRaid.login(
       externalUserId,
       jwt = jwt.takeIf { it.isNotBlank() },
     )
@@ -122,17 +122,17 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   }
 
   override fun logout(promise: Promise) = resolve(promise) {
-    Comraid.logout()
+    ComRaid.logout()
     null
   }
 
   override fun optIn(promise: Promise) = resolve(promise) {
-    Comraid.optIn()
+    ComRaid.optIn()
     null
   }
 
   override fun optOut(promise: Promise) = resolve(promise) {
-    Comraid.optOut()
+    ComRaid.optOut()
     null
   }
 
@@ -147,7 +147,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     permissionPromise = null
     if (granted && NotificationManagerCompat.from(reactContext).areNotificationsEnabled()) {
       try {
-        Comraid.register()
+        ComRaid.register()
         promise?.resolve(true)
       } catch (error: Throwable) {
         promise?.reject("COMRAID_ERROR", error.message, error)
@@ -169,8 +169,8 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     promise: Promise,
   ) = resolve(promise) {
     scheduleResult(
-      Comraid.schedule(
-        ComraidScheduleRequest(
+      ComRaid.schedule(
+        ComRaidScheduleRequest(
           notification = notification(id, title, body, dataJson),
           triggerAtMillis = triggerAtMillis.toLong(),
           precision = precision(precision),
@@ -191,7 +191,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     promise: Promise,
   ) = resolve(promise) {
     scheduleResult(
-      Comraid.startTimer(
+      ComRaid.startTimer(
         notification = notification(id, title, body, dataJson),
         durationMillis = durationMillis.toLong(),
         precision = precision(precision),
@@ -201,13 +201,13 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   }
 
   override fun cancel(id: String, promise: Promise) = resolve(promise) {
-    Comraid.cancel(id)
+    ComRaid.cancel(id)
     null
   }
 
   override fun pendingSchedules(promise: Promise) = resolve(promise) {
     Arguments.createArray().apply {
-      Comraid.pendingSchedules().forEach { request ->
+      ComRaid.pendingSchedules().forEach { request ->
         pushMap(Arguments.createMap().apply {
           putString("id", request.notification.id)
           putString("title", request.notification.title)
@@ -218,12 +218,12 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     }
   }
 
-  private fun notification(id: String, title: String, body: String, dataJson: String): ComraidNotification {
+  private fun notification(id: String, title: String, body: String, dataJson: String): ComRaidNotification {
     val json = JSONObject(dataJson)
     val data = buildMap {
       json.keys().forEach { key -> put(key, json.getString(key)) }
     }
-    return ComraidNotification(id = id, title = title, body = body, data = data)
+    return ComRaidNotification(id = id, title = title, body = body, data = data)
   }
 
   private fun precision(value: String) = when (value) {
@@ -238,7 +238,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     else -> error("Unsupported fallback policy '$value'")
   }
 
-  private fun scheduleResult(value: com.comraide.android.ComraidScheduleResult) = Arguments.createMap().apply {
+  private fun scheduleResult(value: com.comraid.android.ComRaidScheduleResult) = Arguments.createMap().apply {
     putString("id", value.id)
     putString("requestedPrecision", value.requestedPrecision.name.lowercase())
     putString("appliedPrecision", value.appliedPrecision.name.lowercase())
@@ -256,9 +256,9 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
 
   companion object {
     const val NAME = NativeComraidSpec.NAME
-    private const val META_CHANNEL_ID = "com.comraide.DEFAULT_CHANNEL_ID"
-    private const val META_CHANNEL_NAME = "com.comraide.DEFAULT_CHANNEL_NAME"
-    private const val META_SMALL_ICON = "com.comraide.SMALL_ICON_RESOURCE"
+    private const val META_CHANNEL_ID = "com.comraid.DEFAULT_CHANNEL_ID"
+    private const val META_CHANNEL_NAME = "com.comraid.DEFAULT_CHANNEL_NAME"
+    private const val META_SMALL_ICON = "com.comraid.SMALL_ICON_RESOURCE"
     private const val PERMISSION_REQUEST_CODE = 43_117
   }
 }
