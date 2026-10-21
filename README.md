@@ -65,7 +65,7 @@ const timer = await ComRaid.startTimer({
   "expo": {
     "plugins": [
       [
-        "react-native-comraid",
+        "@comraid/react-native",
         {
           "android": {
             "defaultChannelId": "general",

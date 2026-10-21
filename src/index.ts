@@ -195,7 +195,4 @@ export const ComRaid = {
 	},
 };
 
-/** @deprecated Use ComRaid */
-export const Comraid = ComRaid;
-
 export default ComRaid;
