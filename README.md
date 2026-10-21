@@ -1,4 +1,4 @@
-# `/react-native`
+# `@comraid/react-native`
 
 Thin TurboModule bridge over the ComRaid Android and Apple SDKs (ADR 0004). Identity and HTTP live only in the native SDKs; JavaScript forwards arguments. Vocabulary: **Subscription**, `external_user_id`, Identity verification **JWT** (`login(externalUserId, jwt)`). Server-side sends use **Message** / **Notification**, **Campaign**, **Single send**, **Broadcast**, and **Multi-send**.
 
@@ -14,7 +14,7 @@ Thin TurboModule bridge over the ComRaid Android and Apple SDKs (ADR 0004). Iden
 ## Identity loop
 
 ```ts
-import { ComRaid } from '/react-native';
+import { ComRaid } from '@comraid/react-native';
 
 await ComRaid.initialize({
   appId: 'cr_app_your_id',
