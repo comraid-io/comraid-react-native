@@ -164,9 +164,24 @@ smallIconResourceName:(NSString *)smallIconResourceName
               resolve:(RCTPromiseResolveBlock)resolve
                reject:(RCTPromiseRejectBlock)reject
 {
-  reject(@"COMRAID_UNSUPPORTED",
-         @"setAttributes requires the iOS ComRaid SDK attribute APIs (T18)",
-         nil);
+  NSError *parseError = nil;
+  NSDictionary *attributes = RNComraidData(attributesJson, &parseError);
+  if (parseError) {
+    RNComraidReject(parseError, reject);
+    return;
+  }
+  if (attributes.count == 0) {
+    reject(@"COMRAID_ERROR", @"attributes must not be empty", nil);
+    return;
+  }
+  [[ComraidBridge shared] setAttributes:attributes
+                             completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
 }
 
 - (void)acknowledgeDelivered:(NSString *)deliveryId
@@ -174,9 +189,15 @@ smallIconResourceName:(NSString *)smallIconResourceName
                     resolve:(RCTPromiseResolveBlock)resolve
                      reject:(RCTPromiseRejectBlock)reject
 {
-  reject(@"COMRAID_UNSUPPORTED",
-         @"acknowledgeDelivered requires the iOS ComRaid SDK ACK APIs (T18)",
-         nil);
+  [[ComraidBridge shared] acknowledgeDeliveredWithDeliveryId:deliveryId
+                                           attributionToken:attributionToken
+                                                 completion:^(BOOL ok, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(@(ok));
+    }
+  }];
 }
 
 - (void)acknowledgeOpened:(NSString *)deliveryId
@@ -185,19 +206,30 @@ smallIconResourceName:(NSString *)smallIconResourceName
                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject
 {
-  reject(@"COMRAID_UNSUPPORTED",
-         @"acknowledgeOpened requires the iOS ComRaid SDK ACK APIs (T18)",
-         nil);
+  NSString *action = actionId.length > 0 ? actionId : nil;
+  [[ComraidBridge shared] acknowledgeOpenedWithDeliveryId:deliveryId
+                                        attributionToken:attributionToken
+                                                actionId:action
+                                              completion:^(BOOL ok, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(@(ok));
+    }
+  }];
 }
 
 - (void)flushAcks:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
-  reject(@"COMRAID_UNSUPPORTED",
-         @"flushAcks requires the iOS ComRaid SDK ACK APIs (T18)",
-         nil);
+  [[ComraidBridge shared] flushAcksWithCompletion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
 }
-
 - (void)schedule:(NSString *)id
            title:(NSString *)title
             body:(NSString *)body

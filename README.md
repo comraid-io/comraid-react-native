@@ -12,7 +12,7 @@ Ship target is this package only (`@comraid/react-native`). Legacy paths (`react
 - Android API 24 or newer
 - Host apps supply Firebase Messaging (Android) and APNs setup (iOS)
 - Expo development or production builds for Expo apps; Expo Go cannot load this native module
-- Android native SDK `com.comraid:comraid` (attributes / ACKs). iOS attribute and ACK wraps wait on T18.
+- Native SDKs: Android `com.comraid:comraid`, iOS `ComRaid`. Contact Attributes require Login (`external_user_id`); delivery ACKs follow the native SDK enqueue/flush path.
 
 ## Identity loop
 
@@ -52,13 +52,17 @@ Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (
 
 ## Delivery ACKs
 
-Remote display and durable ACK enqueue usually run inside the native FCM / APNs path. JS can also forward explicit ACKs (Android today; iOS after T18):
+Remote display and durable ACK enqueue usually run inside the native FCM / APNs path. JS can also forward explicit ACKs; both platforms call through to the native SDK:
 
 ```ts
 await ComRaid.acknowledgeDelivered(deliveryId, attributionToken);
 await ComRaid.acknowledgeOpened(deliveryId, attributionToken, 'accept');
 await ComRaid.flushAcks();
 ```
+
+## Deep links
+
+This package does not add a second push stack or Message-send APIs. Rich fields are sent via the public API / `@comraid/node` / dashboard. On open, read `cr_deep_link` from the native notification payload (FCM data / APNs `userInfo`, or Expo `notification.request.content.data`) and route in your app — see the Android and iOS SDK READMEs (“Deep links and rich fields”).
 
 ## Local timers
 

@@ -176,7 +176,7 @@ export const ComRaid = {
 
 	/**
 	 * Upsert Contact Attributes for the logged-in `external_user_id`.
-	 * Android: forwarded to `ComRaid.setAttributes`. iOS: requires T18 native APIs.
+	 * Requires Login. Forwards to native `ComRaid.setAttributes` (Android / iOS).
 	 */
 	async setAttributes(attributes: ContactAttributes): Promise<void> {
 		if (attributes == null || typeof attributes !== 'object' || Array.isArray(attributes)) {
