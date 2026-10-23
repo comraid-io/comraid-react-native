@@ -158,7 +158,6 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
 
   override fun setAttributes(attributesJson: String, promise: Promise) = resolve(promise) {
     val json = JSONObject(attributesJson)
-    require(json.length() > 0) { "attributes must not be empty" }
     ComRaid.setAttributes(jsonObjectToMap(json))
     null
   }
