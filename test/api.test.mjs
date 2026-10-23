@@ -44,6 +44,27 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /ComRaid\.flushAcks/);
 });
 
+test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
+	const moduleMm = fs.readFileSync(path.join(root, 'ios/RNComraid.mm'), 'utf8');
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] setAttributes:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] acknowledgeDeliveredWithDeliveryId:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] acknowledgeOpenedWithDeliveryId:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] flushAcksWithCompletion:/);
+	assert.doesNotMatch(
+		moduleMm,
+		/setAttributes requires the iOS ComRaid SDK attribute APIs/,
+	);
+	assert.doesNotMatch(
+		moduleMm,
+		/acknowledgeDelivered requires the iOS ComRaid SDK ACK APIs/,
+	);
+	assert.doesNotMatch(
+		moduleMm,
+		/acknowledgeOpened requires the iOS ComRaid SDK ACK APIs/,
+	);
+	assert.doesNotMatch(moduleMm, /flushAcks requires the iOS ComRaid SDK ACK APIs/);
+});
+
 test('setAttributes rejects empty maps in JS before native', () => {
 	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
 	assert.match(index, /attributes must not be empty/);
