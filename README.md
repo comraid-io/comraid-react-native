@@ -60,6 +60,10 @@ await ComRaid.acknowledgeOpened(deliveryId, attributionToken, 'accept');
 await ComRaid.flushAcks();
 ```
 
+## Deep links
+
+This package does not add a second push stack or Message-send APIs. Rich fields are sent via the public API / `@comraid/node` / dashboard. On open, read `cr_deep_link` from the native notification payload (FCM data / APNs `userInfo`, or Expo `notification.request.content.data`) and route in your app — see the Android and iOS SDK READMEs (“Deep links and rich fields”).
+
 ## Local timers
 
 ```ts
