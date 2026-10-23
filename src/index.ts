@@ -182,9 +182,6 @@ export const ComRaid = {
 		if (attributes == null || typeof attributes !== 'object' || Array.isArray(attributes)) {
 			throw new TypeError('attributes must be a plain object');
 		}
-		if (Object.keys(attributes).length === 0) {
-			throw new TypeError('attributes must not be empty');
-		}
 		await nativeModule().setAttributes(JSON.stringify(attributes));
 	},
 

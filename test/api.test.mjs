@@ -65,7 +65,24 @@ test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
 	assert.doesNotMatch(moduleMm, /flushAcks requires the iOS ComRaid SDK ACK APIs/);
 });
 
-test('setAttributes rejects empty maps in JS before native', () => {
+test('setAttributes allows empty maps through JS and native bridges', () => {
 	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
-	assert.match(index, /attributes must not be empty/);
+	assert.doesNotMatch(index, /attributes must not be empty/);
+
+	const moduleKt = fs.readFileSync(
+		path.join(root, 'android/src/main/java/com/comraid/reactnative/ComraidModule.kt'),
+		'utf8',
+	);
+	assert.doesNotMatch(moduleKt, /attributes must not be empty/);
+	assert.match(moduleKt, /ComRaid\.setAttributes\(jsonObjectToMap\(json\)\)/);
+
+	const moduleMm = fs.readFileSync(path.join(root, 'ios/RNComraid.mm'), 'utf8');
+	assert.doesNotMatch(moduleMm, /attributes must not be empty/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] setAttributes:/);
+
+	// iOS setDeviceProperties stays stubbed (no implementation in this effort).
+	assert.match(
+		moduleMm,
+		/setDeviceProperties requires the iOS ComRaid SDK attribute APIs/,
+	);
 });
