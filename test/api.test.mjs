@@ -68,6 +68,8 @@ test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
 test('setAttributes allows empty maps through JS and native bridges', () => {
 	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
 	assert.doesNotMatch(index, /attributes must not be empty/);
+	// Empty `{}` is JSON.stringified and forwarded to native (no client non-empty guard).
+	assert.match(index, /nativeModule\(\)\.setAttributes\(JSON\.stringify\(attributes\)\)/);
 
 	const moduleKt = fs.readFileSync(
 		path.join(root, 'android/src/main/java/com/comraid/reactnative/ComraidModule.kt'),
@@ -84,5 +86,31 @@ test('setAttributes allows empty maps through JS and native bridges', () => {
 	assert.match(
 		moduleMm,
 		/setDeviceProperties requires the iOS ComRaid SDK attribute APIs/,
+	);
+});
+
+test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', () => {
+	// RN is a thin bridge; mobile PUT body is recorded in comraid-android unit tests.
+	const androidTest = path.join(
+		root,
+		'../comraid-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
+	);
+	assert.ok(
+		fs.existsSync(androidTest),
+		'sibling comraid-android recording test required for empty Attributes HTTP seam',
+	);
+	const recorded = fs.readFileSync(androidTest, 'utf8');
+	assert.match(recorded, /setAttributes_empty_map_after_login_puts_empty_attributes_body/);
+	assert.match(recorded, /\/mobile\/subscriptions\/sub-1\/attributes/);
+	assert.match(recorded, /ComRaid\.setAttributes\(emptyMap\(\)\)/);
+
+	const mobileClient = path.join(
+		root,
+		'../comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
+	);
+	assert.ok(fs.existsSync(mobileClient), 'sibling MobileApiClient required');
+	assert.match(
+		fs.readFileSync(mobileClient, 'utf8'),
+		/\/mobile\/subscriptions\/\$subscriptionId\/attributes/,
 	);
 });
