@@ -181,7 +181,7 @@ Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Lo
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `attributes` | `ContactAttributes` | yes | Non-empty plain object of attribute keys |
+| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update) |
 
 **Returns:** `Promise<void>`
 
@@ -331,7 +331,7 @@ This package does not export a dedicated `ComRaidError` type. Failures surface a
 | Kind | When |
 |------|------|
 | `Error` | Native module not linked (e.g. Expo Go / missing rebuild) |
-| `TypeError` | Invalid JS arguments (`appId`, empty `externalUserId`, empty attributes, past `triggerAt`, non-positive `durationMs`, non-string `notification.data` values, etc.) |
+| `TypeError` | Invalid JS arguments (`appId`, empty `externalUserId`, non-object attributes, past `triggerAt`, non-positive `durationMs`, non-string `notification.data` values, etc.) |
 | Native promise rejection | Platform / network / native SDK failures forwarded from Android / iOS |
 
 Validate inputs in JS before the TurboModule call; treat native rejections as operational errors (permission, token, HTTP).

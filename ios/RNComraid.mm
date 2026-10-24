@@ -170,10 +170,6 @@ smallIconResourceName:(NSString *)smallIconResourceName
     RNComraidReject(parseError, reject);
     return;
   }
-  if (attributes.count == 0) {
-    reject(@"COMRAID_ERROR", @"attributes must not be empty", nil);
-    return;
-  }
   [[ComraidBridge shared] setAttributes:attributes
                              completion:^(NSError *error) {
     if (error) {
