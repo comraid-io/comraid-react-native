@@ -33,9 +33,11 @@ defaultChannelId:(NSString *)defaultChannelId
 defaultChannelName:(NSString *)defaultChannelName
 smallIconResourceName:(NSString *)smallIconResourceName
  storageSuiteName:(NSString *)storageSuiteName
+displayForegroundNotifications:(BOOL)displayForegroundNotifications
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
+  (void)displayForegroundNotifications;
   if (appId.length == 0) {
     reject(@"COMRAID_ERROR", @"appId is required (cr_app_…)", nil);
     return;
@@ -313,6 +315,48 @@ smallIconResourceName:(NSString *)smallIconResourceName
       resolve(value);
     }
   }];
+}
+
+- (void)getToken:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject
+{
+  reject(@"COMRAID_UNSUPPORTED",
+         @"getToken event bridging lands in ticket 04 (iOS)",
+         nil);
+}
+
+- (void)getInitialNotification:(RCTPromiseResolveBlock)resolve
+                        reject:(RCTPromiseRejectBlock)reject
+{
+  resolve((id)kCFNull);
+}
+
+- (void)presentNotification:(NSString *)messageJson
+                    resolve:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+  (void)messageJson;
+  reject(@"COMRAID_UNSUPPORTED",
+         @"presentNotification lands in ticket 04 (iOS)",
+         nil);
+}
+
+- (void)setBackgroundHandlerRegistered:(BOOL)registered
+                               resolve:(RCTPromiseResolveBlock)resolve
+                                reject:(RCTPromiseRejectBlock)reject
+{
+  (void)registered;
+  resolve(nil);
+}
+
+- (void)addListener:(NSString *)eventName
+{
+  (void)eventName;
+}
+
+- (void)removeListeners:(double)count
+{
+  (void)count;
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
