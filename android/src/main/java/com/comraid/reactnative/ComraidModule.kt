@@ -1,6 +1,8 @@
 package com.comraid.reactnative
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
@@ -16,6 +18,7 @@ import com.comraid.android.RemoteMessageEvent
 import com.comraid.android.RemoteMessageListener
 import com.comraid.android.SchedulePrecision
 import com.comraid.android.TokenRefreshListener
+import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -27,7 +30,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class ComraidModule(private val reactContext: ReactApplicationContext) :
-  NativeComraidSpec(reactContext), PermissionListener {
+  NativeComraidSpec(reactContext), PermissionListener, ActivityEventListener {
 
   private var permissionPromise: Promise? = null
   private var listenersAttached = false
@@ -47,12 +50,24 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
 
   override fun initialize() {
     super.initialize()
+    reactContext.addActivityEventListener(this)
     attachNativeListeners()
   }
 
   override fun invalidate() {
+    reactContext.removeActivityEventListener(this)
     detachNativeListeners()
     super.invalidate()
+  }
+
+  override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
+    // No-op: ActivityEventListener requires both methods.
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    // Warm system-tray opens: Activity may already be running (singleTop / singleTask).
+    reactContext.currentActivity?.intent = intent
+    ComRaid.consumeLaunchIntent(intent, coldStart = false)
   }
 
   override fun configure(

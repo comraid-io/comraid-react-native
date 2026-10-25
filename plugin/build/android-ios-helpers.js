@@ -105,10 +105,6 @@ function modifyAppDelegate(contents, language) {
 }
 
 function modifySwiftAppDelegate(src) {
-  if (src.includes('RNComraidPushDelegate.install()')) {
-    return src;
-  }
-
   let next = src;
   if (!next.includes('import ReactNativeComraid') && !next.includes('RNComraidPushDelegate')) {
     const importMatch = next.match(/^import .+$/m);
@@ -119,30 +115,32 @@ function modifySwiftAppDelegate(src) {
     }
   }
 
-  const launchAnchor =
-    /return super\.application\(\s*application,\s*didFinishLaunchingWithOptions:\s*launchOptions\s*\)/;
-  if (launchAnchor.test(next)) {
-    const merged = mergeContents({
-      src: next,
-      newSrc: '    RNComraidPushDelegate.install()',
-      tag: `${APP_DELEGATE_TAG}-install`,
-      anchor: launchAnchor,
-      offset: 0,
-      comment: '//',
-    });
-    next = merged.contents;
-  } else {
-    const alt = /return [^\n]*didFinishLaunchingWithOptions[^\n]*/;
-    if (alt.test(next)) {
+  if (!next.includes('RNComraidPushDelegate.install()')) {
+    const launchAnchor =
+      /return super\.application\(\s*application,\s*didFinishLaunchingWithOptions:\s*launchOptions\s*\)/;
+    if (launchAnchor.test(next)) {
       const merged = mergeContents({
         src: next,
         newSrc: '    RNComraidPushDelegate.install()',
         tag: `${APP_DELEGATE_TAG}-install`,
-        anchor: alt,
+        anchor: launchAnchor,
         offset: 0,
         comment: '//',
       });
       next = merged.contents;
+    } else {
+      const alt = /return [^\n]*didFinishLaunchingWithOptions[^\n]*/;
+      if (alt.test(next)) {
+        const merged = mergeContents({
+          src: next,
+          newSrc: '    RNComraidPushDelegate.install()',
+          tag: `${APP_DELEGATE_TAG}-install`,
+          anchor: alt,
+          offset: 0,
+          comment: '//',
+        });
+        next = merged.contents;
+      }
     }
   }
 
@@ -176,14 +174,41 @@ function modifySwiftAppDelegate(src) {
     next = merged.contents;
   }
 
+  if (!next.includes('didReceiveRemoteNotification')) {
+    const fetchMethod = `
+  public override func application(
+    _ application: UIApplication,
+    didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+    fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+  ) {
+    RNComraidPushDelegate.handleRemoteNotification(userInfo, fetchCompletionHandler: completionHandler)
+  }`;
+    const merged = mergeContents({
+      src: next,
+      newSrc: fetchMethod,
+      tag: `${APP_DELEGATE_TAG}-fetch`,
+      anchor: /}\s*$/,
+      offset: 0,
+      comment: '//',
+    });
+    next = merged.contents;
+  } else if (!next.includes('RNComraidPushDelegate.handleRemoteNotification')) {
+    const merged = mergeContents({
+      src: next,
+      newSrc:
+        '    RNComraidPushDelegate.handleRemoteNotification(userInfo, fetchCompletionHandler: completionHandler)',
+      tag: `${APP_DELEGATE_TAG}-fetch-call`,
+      anchor: /didReceiveRemoteNotification[^{]*\{/,
+      offset: 1,
+      comment: '//',
+    });
+    next = merged.contents;
+  }
+
   return next;
 }
 
 function modifyObjCAppDelegate(src) {
-  if (src.includes('RNComraidPushDelegate install') || src.includes('[RNComraidPushDelegate install]')) {
-    return src;
-  }
-
   let next = src;
   if (!next.includes('RNComraidPushDelegate.h')) {
     const importLine = '#import "RNComraidPushDelegate.h"';
@@ -233,6 +258,36 @@ function modifyObjCAppDelegate(src) {
       newSrc: '  [RNComraidPushDelegate setDeviceToken:deviceToken];',
       tag: `${APP_DELEGATE_TAG}-token-call`,
       anchor: /didRegisterForRemoteNotificationsWithDeviceToken[^{]*\{/,
+      offset: 1,
+      comment: '//',
+    });
+    next = merged.contents;
+  }
+
+  if (!next.includes('didReceiveRemoteNotification')) {
+    const fetchMethod = `
+- (void)application:(UIApplication *)application
+didReceiveRemoteNotification:(NSDictionary *)userInfo
+fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
+{
+  [RNComraidPushDelegate handleRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
+}`;
+    const merged = mergeContents({
+      src: next,
+      newSrc: fetchMethod,
+      tag: `${APP_DELEGATE_TAG}-fetch`,
+      anchor: /@end\s*$/,
+      offset: 0,
+      comment: '//',
+    });
+    next = merged.contents;
+  } else if (!next.includes('[RNComraidPushDelegate handleRemoteNotification')) {
+    const merged = mergeContents({
+      src: next,
+      newSrc:
+        '  [RNComraidPushDelegate handleRemoteNotification:userInfo fetchCompletionHandler:completionHandler];',
+      tag: `${APP_DELEGATE_TAG}-fetch-call`,
+      anchor: /didReceiveRemoteNotification[^{]*\{/,
       offset: 1,
       comment: '//',
     });
