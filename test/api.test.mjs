@@ -31,7 +31,9 @@ test('public ComRaid API wraps attributes, properties, and ACKs', () => {
 		assert.match(source, new RegExp(`async ${method}\\(`));
 	}
 	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
-	assert.match(index, /export const ComRaid = createComRaid/);
+	assert.match(index, /export const ComRaid =/);
+	const instance = fs.readFileSync(path.join(root, 'src/instance.ts'), 'utf8');
+	assert.match(instance, /createComRaid\(/);
 });
 
 test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {

@@ -6,6 +6,7 @@
     "customConditions": ["react-native-comraid-source", "react-native-strict-api"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
     "lib": ["ESNext"],
     "module": "ESNext",
     "moduleResolution": "bundler",
