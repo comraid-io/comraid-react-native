@@ -250,7 +250,7 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 
 		/**
 		 * Persist Subscription device Properties for the next register / token refresh.
-		 * Android: forwarded to `ComRaid.setDeviceProperties`. iOS: requires T18 native APIs.
+		 * Forwarded to native `ComRaid.setDeviceProperties` (Android / iOS).
 		 */
 		async setDeviceProperties(properties: DeviceProperties): Promise<void> {
 			const extras = properties.extras ?? {};

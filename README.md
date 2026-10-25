@@ -392,6 +392,10 @@ You may also pass `android.googleServicesFile` as a plugin option (same path). T
 
 App ID is passed at runtime via `initialize`, not only in the plugin. Create the Firebase project / APNs key in the provider consoles; the plugin only applies the native wiring.
 
+## Example app
+
+See [`example/`](./example/) — Expo SDK 57 / RN 0.86 New Architecture playground that exercises the public methods (initialize, permission, register, login, Properties/Attributes, receive events, present/ACKs, schedule/timer). Dev client only (not Expo Go). Setup notes in [`example/README.md`](./example/README.md).
+
 ## Local verification
 
 ```sh

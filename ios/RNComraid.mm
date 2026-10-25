@@ -189,9 +189,27 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
                     resolve:(RCTPromiseResolveBlock)resolve
                      reject:(RCTPromiseRejectBlock)reject
 {
-  reject(@"COMRAID_UNSUPPORTED",
-         @"setDeviceProperties requires the iOS ComRaid SDK attribute APIs (T18)",
-         nil);
+  NSError *parseError = nil;
+  NSString *extrasPayload = extrasJson.length > 0 ? extrasJson : @"{}";
+  NSDictionary *extras = RNComraidData(extrasPayload, &parseError);
+  if (parseError) {
+    RNComraidReject(parseError, reject);
+    return;
+  }
+  NSString *version = appVersion.length > 0 ? appVersion : nil;
+  NSString *deviceModel = model.length > 0 ? model : nil;
+  NSString *os = osVersion.length > 0 ? osVersion : nil;
+  [[ComraidBridge shared] setDevicePropertiesWithAppVersion:version
+                                                      model:deviceModel
+                                                  osVersion:os
+                                                     extras:extras
+                                                 completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
 }
 
 - (void)setAttributes:(NSString *)attributesJson

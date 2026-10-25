@@ -51,8 +51,9 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /displayForegroundNotifications/);
 });
 
-test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
+test('iOS bridge forwards attribute, properties, and ACK APIs to ComraidBridge', () => {
 	const moduleMm = fs.readFileSync(path.join(root, 'ios/RNComraid.mm'), 'utf8');
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] setDevicePropertiesWithAppVersion:/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] setAttributes:/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] acknowledgeDeliveredWithDeliveryId:/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] acknowledgeOpenedWithDeliveryId:/);
@@ -63,6 +64,10 @@ test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] setBackgroundHandlerRegistered:/);
 	assert.match(moduleMm, /displayForegroundNotifications:/);
 	assert.match(moduleMm, /setEventEmitter:/);
+	assert.doesNotMatch(
+		moduleMm,
+		/setDeviceProperties requires the iOS ComRaid SDK attribute APIs/,
+	);
 	assert.doesNotMatch(
 		moduleMm,
 		/setAttributes requires the iOS ComRaid SDK attribute APIs/,
@@ -96,12 +101,6 @@ test('setAttributes allows empty maps through JS and native bridges', () => {
 	const moduleMm = fs.readFileSync(path.join(root, 'ios/RNComraid.mm'), 'utf8');
 	assert.doesNotMatch(moduleMm, /attributes must not be empty/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] setAttributes:/);
-
-	// iOS setDeviceProperties stays stubbed (no implementation in this effort).
-	assert.match(
-		moduleMm,
-		/setDeviceProperties requires the iOS ComRaid SDK attribute APIs/,
-	);
 });
 
 test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', () => {
