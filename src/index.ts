@@ -1,6 +1,4 @@
-import { NativeEventEmitter } from 'react-native';
 import {
-	createComRaid,
 	type APNsEnvironment,
 	type Capabilities,
 	type ConfigureOptions,
@@ -17,7 +15,8 @@ import {
 	type TimerOptions,
 	type Unsubscribe,
 } from './createComRaid';
-import NativeComraid from './NativeComraid';
+import { ComRaid as comRaidInstance } from './instance';
+import { SubscribeBanner, type SubscribeBannerProps } from './SubscribeBanner';
 
 export type {
 	APNsEnvironment,
@@ -35,19 +34,11 @@ export type {
 	ScheduleResult,
 	TimerOptions,
 	Unsubscribe,
+	SubscribeBannerProps,
 };
 
-const eventEmitter = NativeComraid != null ? new NativeEventEmitter(NativeComraid) : null;
+export { SubscribeBanner };
 
-export const ComRaid = createComRaid(NativeComraid ?? null, {
-	addListener(eventType, listener) {
-		if (eventEmitter == null) {
-			throw new Error(
-				'@comraid/react-native is not linked. Rebuild the native app; Expo Go cannot load this module.',
-			);
-		}
-		return eventEmitter.addListener(eventType, listener);
-	},
-});
+export const ComRaid = comRaidInstance;
 
 export default ComRaid;
