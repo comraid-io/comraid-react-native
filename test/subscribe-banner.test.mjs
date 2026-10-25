@@ -30,8 +30,18 @@ test('SubscribeBanner exposes host dismiss and result callbacks', () => {
 	assert.match(source, /onDismiss/);
 	assert.match(source, /onSuccess/);
 	assert.match(source, /onError/);
+	assert.match(source, /onPermissionDenied/);
 	assert.match(source, /externalUserId/);
 	assert.match(source, /jwt/);
 	// Loading disables the primary action while the flow runs.
 	assert.match(source, /loading|disabled|isPending|busy/i);
+});
+
+test('denied path keeps copy and softens primary to Try again', () => {
+	const source = fs.readFileSync(path.join(root, 'src/SubscribeBanner.tsx'), 'utf8');
+	assert.match(source, /deniedLabel/);
+	assert.match(source, /onPermissionDenied/);
+	assert.match(source, /Try again/);
+	// After deny, primary label switches away from the enable CTA.
+	assert.match(source, /denied\s*\?\s*[\s\S]*Try again|tryAgainLabel|DEFAULT_TRY_AGAIN/);
 });

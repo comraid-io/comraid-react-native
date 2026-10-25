@@ -11,11 +11,12 @@ export type SubscribeFlowOptions = {
 
 export type SubscribeFlowResult =
 	| { status: 'denied' }
-	| { status: 'subscribed' };
+	| { status: 'registered' };
 
 /**
  * Permission → register → optional Login. Never touches Channel optIn/optOut.
  * Injectable deps keep this testable without a device (ADR 0004 thin bridge).
+ * Internal to SubscribeBanner — not part of the package public API.
  */
 export async function runSubscribeFlow(
 	deps: SubscribeFlowDeps,
@@ -33,5 +34,5 @@ export async function runSubscribeFlow(
 		await deps.login(externalUserId, options.jwt);
 	}
 
-	return { status: 'subscribed' };
+	return { status: 'registered' };
 }
