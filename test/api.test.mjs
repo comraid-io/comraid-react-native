@@ -20,7 +20,7 @@ test('TurboModule Spec declares attributes, properties, and ACK methods', () => 
 });
 
 test('public ComRaid API wraps attributes, properties, and ACKs', () => {
-	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
+	const source = fs.readFileSync(path.join(root, 'src/createComRaid.ts'), 'utf8');
 	for (const method of [
 		'setDeviceProperties',
 		'setAttributes',
@@ -28,8 +28,10 @@ test('public ComRaid API wraps attributes, properties, and ACKs', () => {
 		'acknowledgeOpened',
 		'flushAcks',
 	]) {
-		assert.match(index, new RegExp(`async ${method}\\(`));
+		assert.match(source, new RegExp(`async ${method}\\(`));
 	}
+	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
+	assert.match(index, /export const ComRaid = createComRaid/);
 });
 
 test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
@@ -42,6 +44,11 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /ComRaid\.acknowledgeDelivered/);
 	assert.match(moduleKt, /ComRaid\.acknowledgeOpened/);
 	assert.match(moduleKt, /ComRaid\.flushAcks/);
+	assert.match(moduleKt, /ComRaid\.getToken/);
+	assert.match(moduleKt, /ComRaid\.getInitialNotification/);
+	assert.match(moduleKt, /ComRaid\.presentNotification/);
+	assert.match(moduleKt, /ComRaid\.setBackgroundHandlerRegistered/);
+	assert.match(moduleKt, /displayForegroundNotifications/);
 });
 
 test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
@@ -66,10 +73,10 @@ test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
 });
 
 test('setAttributes allows empty maps through JS and native bridges', () => {
-	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
-	assert.doesNotMatch(index, /attributes must not be empty/);
+	const source = fs.readFileSync(path.join(root, 'src/createComRaid.ts'), 'utf8');
+	assert.doesNotMatch(source, /attributes must not be empty/);
 	// Empty `{}` is JSON.stringified and forwarded to native (no client non-empty guard).
-	assert.match(index, /nativeModule\(\)\.setAttributes\(JSON\.stringify\(attributes\)\)/);
+	assert.match(source, /native\(\)\.setAttributes\(JSON\.stringify\(attributes\)\)/);
 
 	const moduleKt = fs.readFileSync(
 		path.join(root, 'android/src/main/java/com/comraid/reactnative/ComraidModule.kt'),
@@ -91,12 +98,19 @@ test('setAttributes allows empty maps through JS and native bridges', () => {
 
 test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', () => {
 	// RN is a thin bridge; mobile PUT body is recorded in comraid-android unit tests.
-	const androidTest = path.join(
-		root,
-		'../comraid-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
-	);
+	const candidates = [
+		path.join(
+			root,
+			'../comraid-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
+		),
+		path.join(
+			root,
+			'../android-03/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
+		),
+	];
+	const androidTest = candidates.find(candidate => fs.existsSync(candidate));
 	assert.ok(
-		fs.existsSync(androidTest),
+		androidTest,
 		'sibling comraid-android recording test required for empty Attributes HTTP seam',
 	);
 	const recorded = fs.readFileSync(androidTest, 'utf8');
@@ -104,11 +118,18 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 	assert.match(recorded, /\/mobile\/subscriptions\/sub-1\/attributes/);
 	assert.match(recorded, /ComRaid\.setAttributes\(emptyMap\(\)\)/);
 
-	const mobileClient = path.join(
-		root,
-		'../comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
-	);
-	assert.ok(fs.existsSync(mobileClient), 'sibling MobileApiClient required');
+	const clientCandidates = [
+		path.join(
+			root,
+			'../comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
+		),
+		path.join(
+			root,
+			'../android-03/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
+		),
+	];
+	const mobileClient = clientCandidates.find(candidate => fs.existsSync(candidate));
+	assert.ok(mobileClient, 'sibling MobileApiClient required');
 	assert.match(
 		fs.readFileSync(mobileClient, 'utf8'),
 		/\/mobile\/subscriptions\/\$subscriptionId\/attributes/,
