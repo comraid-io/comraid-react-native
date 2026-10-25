@@ -45,13 +45,9 @@ await ComRaid.setDeviceProperties({ appVersion: '1.2.0', model: 'Pixel 8' });
 await ComRaid.setAttributes({ plan: 'premium' });
 
 await ComRaid.logout(); // Subscription becomes Inactive
-await ComRaid.optOut(); // Contact Opted out of push (all Subscriptions)
-await ComRaid.optIn();
 ```
 
-Logout means Inactive (Endpoint state). Opt-out is Contact × Channel and independent of Inactive — not OneSignal-style subscription-only mute.
-
-Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
+Logout means Inactive (Endpoint state). Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
 
 ## Method reference
 
@@ -137,27 +133,13 @@ Associates the Subscription with a Contact (`external_user_id`). Optional Identi
 
 #### `logout(): Promise<void>`
 
-Clears Login. Subscription becomes **Inactive**; stored credential may still allow Contact-level opt-in/out.
-
-**Returns:** `Promise<void>`
-
-#### `optOut(): Promise<void>`
-
-Opts the Contact out of the push Channel (all Subscriptions for that Contact).
-
-**Returns:** `Promise<void>`
-
-#### `optIn(): Promise<void>`
-
-Opts the Contact back into the push Channel.
+Clears Login. Subscription becomes **Inactive**.
 
 **Returns:** `Promise<void>`
 
 ```ts
 await ComRaid.login('user_123', jwtFromYourBackend);
 await ComRaid.logout();
-await ComRaid.optOut();
-await ComRaid.optIn();
 ```
 
 ### Properties and Attributes
