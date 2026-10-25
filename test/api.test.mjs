@@ -57,6 +57,12 @@ test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] acknowledgeDeliveredWithDeliveryId:/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] acknowledgeOpenedWithDeliveryId:/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] flushAcksWithCompletion:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] getTokenWithCompletion:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] getInitialNotificationWithCompletion:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] presentNotificationWithMessageJson:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] setBackgroundHandlerRegistered:/);
+	assert.match(moduleMm, /displayForegroundNotifications:/);
+	assert.match(moduleMm, /setEventEmitter:/);
 	assert.doesNotMatch(
 		moduleMm,
 		/setAttributes requires the iOS ComRaid SDK attribute APIs/,
@@ -70,6 +76,8 @@ test('iOS bridge forwards attribute and ACK APIs to ComraidBridge', () => {
 		/acknowledgeOpened requires the iOS ComRaid SDK ACK APIs/,
 	);
 	assert.doesNotMatch(moduleMm, /flushAcks requires the iOS ComRaid SDK ACK APIs/);
+	assert.doesNotMatch(moduleMm, /getToken event bridging lands in ticket 04/);
+	assert.doesNotMatch(moduleMm, /presentNotification lands in ticket 04/);
 });
 
 test('setAttributes allows empty maps through JS and native bridges', () => {

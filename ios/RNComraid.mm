@@ -1,5 +1,13 @@
 #import "RNComraid.h"
+
 @import ComRaid;
+#import <React/RCTBridge.h>
+#import <React/RCTBridgeModule.h>
+#import <React/RCTUtils.h>
+
+@interface RCTBridge (RNComraidCurrent)
++ (RCTBridge *)currentBridge;
+@end
 
 static NSDictionary *RNComraidData(NSString *json, NSError **error)
 {
@@ -22,6 +30,26 @@ static void RNComraidReject(NSError *error, RCTPromiseRejectBlock reject)
   reject(code, error.localizedDescription, error);
 }
 
+static void RNComraidEmitDeviceEvent(NSString *name, NSDictionary *body)
+{
+  RCTBridge *bridge = [RCTBridge currentBridge];
+  if (bridge == nil) {
+    return;
+  }
+  NSArray *args = body != nil ? @[ name, body ] : @[ name ];
+  [bridge enqueueJSCall:@"RCTDeviceEventEmitter" method:@"emit" args:args completion:NULL];
+}
+
+static void RNComraidEnsureEventEmitter(void)
+{
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    [[ComraidBridge shared] setEventEmitter:^(NSString *eventName, NSDictionary *payload) {
+      RNComraidEmitDeviceEvent(eventName, payload);
+    }];
+  });
+}
+
 @implementation RNComraid
 
 RCT_EXPORT_MODULE(Comraid)
@@ -37,7 +65,10 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
-  (void)displayForegroundNotifications;
+  (void)defaultChannelId;
+  (void)defaultChannelName;
+  (void)smallIconResourceName;
+  RNComraidEnsureEventEmitter();
   if (appId.length == 0) {
     reject(@"COMRAID_ERROR", @"appId is required (cr_app_…)", nil);
     return;
@@ -52,6 +83,7 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
                                   apiBaseURL:base
                              apnsEnvironment:apnsEnvironment
                             storageSuiteName:suite
+             displayForegroundNotifications:displayForegroundNotifications
                                   completion:^(NSError *error) {
     if (error) {
       RNComraidReject(error, reject);
@@ -320,38 +352,62 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
 - (void)getToken:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject
 {
-  reject(@"COMRAID_UNSUPPORTED",
-         @"getToken event bridging lands in ticket 04 (iOS)",
-         nil);
+  RNComraidEnsureEventEmitter();
+  [[ComraidBridge shared] getTokenWithCompletion:^(NSString *token, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(token ?: @"");
+    }
+  }];
 }
 
 - (void)getInitialNotification:(RCTPromiseResolveBlock)resolve
                         reject:(RCTPromiseRejectBlock)reject
 {
-  resolve((id)kCFNull);
+  RNComraidEnsureEventEmitter();
+  [[ComraidBridge shared] getInitialNotificationWithCompletion:^(NSDictionary *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value ?: (id)kCFNull);
+    }
+  }];
 }
 
 - (void)presentNotification:(NSString *)messageJson
                     resolve:(RCTPromiseResolveBlock)resolve
                      reject:(RCTPromiseRejectBlock)reject
 {
-  (void)messageJson;
-  reject(@"COMRAID_UNSUPPORTED",
-         @"presentNotification lands in ticket 04 (iOS)",
-         nil);
+  RNComraidEnsureEventEmitter();
+  [[ComraidBridge shared] presentNotificationWithMessageJson:messageJson
+                                                  completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
 }
 
 - (void)setBackgroundHandlerRegistered:(BOOL)registered
                                resolve:(RCTPromiseResolveBlock)resolve
                                 reject:(RCTPromiseRejectBlock)reject
 {
-  (void)registered;
-  resolve(nil);
+  [[ComraidBridge shared] setBackgroundHandlerRegistered:registered
+                                              completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
 }
 
 - (void)addListener:(NSString *)eventName
 {
   (void)eventName;
+  RNComraidEnsureEventEmitter();
 }
 
 - (void)removeListeners:(double)count
@@ -362,6 +418,7 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
+  RNComraidEnsureEventEmitter();
   return std::make_shared<facebook::react::NativeComraidSpecJSI>(params);
 }
 
