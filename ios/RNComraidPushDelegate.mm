@@ -43,6 +43,29 @@
 #endif
 }
 
++ (void)handleRemoteNotification:(NSDictionary *)userInfo
+          fetchCompletionHandler:(void (^)(UIBackgroundFetchResult result))completionHandler
+{
+  if (userInfo.count == 0) {
+    if (completionHandler) {
+      completionHandler(UIBackgroundFetchResultNoData);
+    }
+    return;
+  }
+#if __has_include(<ReactNativeComraid/ReactNativeComraid-Swift.h>) || __has_include("ReactNativeComraid-Swift.h")
+  [RNComraidComRaidCaller handleRemoteNotification:userInfo
+                                   fetchCompletion:^(UIBackgroundFetchResult result) {
+                                     if (completionHandler) {
+                                       completionHandler(result);
+                                     }
+                                   }];
+#else
+  if (completionHandler) {
+    completionHandler(UIBackgroundFetchResultNoData);
+  }
+#endif
+}
+
 #pragma mark - UNUserNotificationCenterDelegate
 
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
@@ -62,13 +85,14 @@
     return;
   }
 
-  if (@available(iOS 14.0, *)) {
-    completionHandler(UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionList |
-                      UNNotificationPresentationOptionSound | UNNotificationPresentationOptionBadge);
-  } else {
-    completionHandler(UNNotificationPresentationOptionAlert | UNNotificationPresentationOptionSound |
-                      UNNotificationPresentationOptionBadge);
-  }
+#if __has_include(<ReactNativeComraid/ReactNativeComraid-Swift.h>) || __has_include("ReactNativeComraid-Swift.h")
+  [RNComraidComRaidCaller presentationOptionsForUserInfo:userInfo
+                                              completion:^(NSUInteger raw) {
+                                                completionHandler((UNNotificationPresentationOptions)raw);
+                                              }];
+#else
+  completionHandler(UNNotificationPresentationOptionNone);
+#endif
 }
 
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center

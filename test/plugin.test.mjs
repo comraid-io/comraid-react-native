@@ -90,6 +90,10 @@ public class AppDelegate: ExpoAppDelegate {
 		next,
 		/didRegisterForRemoteNotificationsWithDeviceToken[\s\S]*RNComraidPushDelegate\.setDeviceToken/,
 	);
+	assert.match(
+		next,
+		/didReceiveRemoteNotification[\s\S]*fetchCompletionHandler[\s\S]*RNComraidPushDelegate\.handleRemoteNotification/,
+	);
 	assert.equal(modifyAppDelegate(next, 'swift'), next);
 });
 
@@ -111,5 +115,40 @@ test('Expo helpers wire APNs token + notification delegate in ObjC AppDelegate',
 		next,
 		/didRegisterForRemoteNotificationsWithDeviceToken[\s\S]*setDeviceToken/,
 	);
+	assert.match(
+		next,
+		/didReceiveRemoteNotification[\s\S]*fetchCompletionHandler[\s\S]*handleRemoteNotification/,
+	);
 	assert.equal(modifyAppDelegate(next, 'objc'), next);
+});
+
+test('Expo helpers add fetch handler when install already present (upgrade path)', () => {
+	const src = `import Expo
+import ReactNativeComraid
+
+@UIApplicationMain
+public class AppDelegate: ExpoAppDelegate {
+  public override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+  ) -> Bool {
+    RNComraidPushDelegate.install()
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  public override func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+    RNComraidPushDelegate.setDeviceToken(deviceToken)
+  }
+}
+`;
+	const next = modifyAppDelegate(src, 'swift');
+	assert.match(
+		next,
+		/didReceiveRemoteNotification[\s\S]*fetchCompletionHandler[\s\S]*RNComraidPushDelegate\.handleRemoteNotification/,
+	);
+	assert.equal(modifyAppDelegate(next, 'swift'), next);
 });
