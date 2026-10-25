@@ -12,7 +12,7 @@ Canonical docs: [docs.comraid.io/sdks/react-native](https://docs.comraid.io/sdks
 - React Native 0.79 or newer; verified with React Native 0.86.3
 - iOS 15 or newer
 - Android API 24 or newer
-- Host apps supply Firebase Messaging (Android) and APNs setup (iOS)
+- Android needs Firebase (`google-services.json`); iOS needs an APNs key/cert in your Apple developer account. Expo apps: the config plugin wires Gradle / AppDelegate for the happy path (see below)
 - Expo development or production builds for Expo apps; Expo Go cannot load this native module
 - Native SDKs: Android `com.comraid:comraid`, iOS `ComRaid`. Contact Attributes require Login (`external_user_id`); delivery ACKs follow the native SDK enqueue/flush path.
 
@@ -34,8 +34,8 @@ await ComRaid.initialize({
 
 const caps = await ComRaid.getCapabilities();
 const granted = await ComRaid.requestNotificationPermission();
-// Android registers on grant. On iOS, forward the APNs token in native AppDelegate
-// via ComraidBridge.setAPNsDeviceToken, then:
+// Android registers on grant. On iOS with the Expo config plugin, APNs token
+// forwarding is automatic after prebuild — then:
 await ComRaid.register();
 
 await ComRaid.login('user_123');
@@ -350,9 +350,14 @@ This package does not add a second push stack or Message-send APIs. Rich fields 
 
 ## Expo config plugin
 
+Zero-hand-edit happy path: add the plugin, point at `google-services.json`, set APNs environment, then `npx expo prebuild`. No manual AppDelegate or Gradle edits for register/receive.
+
 ```json
 {
   "expo": {
+    "android": {
+      "googleServicesFile": "./google-services.json"
+    },
     "plugins": [
       [
         "@comraid/react-native",
@@ -360,7 +365,8 @@ This package does not add a second push stack or Message-send APIs. Rich fields 
           "android": {
             "defaultChannelId": "general",
             "defaultChannelName": "General",
-            "smallIconResourceName": "ic_notification"
+            "smallIconResourceName": "ic_notification",
+            "defaultNotificationColor": "#FF5722"
           },
           "ios": {
             "storageSuiteName": "com.example.app.comraid",
@@ -373,15 +379,18 @@ This package does not add a second push stack or Message-send APIs. Rich fields 
 }
 ```
 
-The plugin (V1-ready):
+You may also pass `android.googleServicesFile` as a plugin option (same path). The plugin:
 
-- Writes Android meta-data for default channel / small icon (`com.comraid.*`)
+- Applies the `com.google.gms.google-services` Gradle plugin and copies `google-services.json` when `android.googleServicesFile` is set (Expo config or plugin option)
+- Adds the host `firebase-messaging` dependency (required because the Android SDK depends on FCM as `compileOnly`)
+- Writes Android meta-data for default channel id/name, small icon, and optional notification color (`com.comraid.*`)
 - Declares `POST_NOTIFICATIONS`
 - Registers `com.comraid.android.internal.ComraidMessagingService` for FCM (disable with `android.includeMessagingService: false` if the host subclasses it)
 - Adds iOS `UIBackgroundModes` `remote-notification`
-- Optionally sets `aps-environment` when `ios.apnsEnvironment` is `sandbox` or `production`
+- Sets `aps-environment` when `ios.apnsEnvironment` is `sandbox` or `production`
+- Wires AppDelegate for APNs token + `UNUserNotificationCenter` delegate via `RNComraidPushDelegate` (disable with `ios.wireAppDelegate: false` for bare apps that install the delegate themselves)
 
-App ID is passed at runtime via `initialize`, not only in the plugin. Host apps still own the Firebase / APNs project setup.
+App ID is passed at runtime via `initialize`, not only in the plugin. Create the Firebase project / APNs key in the provider consoles; the plugin only applies the native wiring.
 
 ## Local verification
 
