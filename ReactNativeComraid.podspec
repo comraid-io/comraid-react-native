@@ -21,11 +21,13 @@ Pod::Spec.new do |spec|
     :tag => spec.version.to_s,
   }
   spec.source_files = "ios/**/*.{h,m,mm,swift,cpp}"
-  spec.private_header_files = "ios/**/*.h"
+  spec.public_header_files = "ios/RNComraidPushDelegate.h"
+  spec.private_header_files = "ios/RNComraid.h"
   spec.dependency "ComRaid", "~> 0.1.0"
   spec.pod_target_xcconfig = {
     "DEFINES_MODULE" => "YES",
     "CLANG_ENABLE_MODULES" => "YES",
+    "SWIFT_VERSION" => "5.0",
     "OTHER_CPLUSPLUSFLAGS" => "$(inherited) -fcxx-modules",
   }
 

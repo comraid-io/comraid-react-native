@@ -22,6 +22,18 @@ export type NativePendingSchedule = {
 	triggerAtMillis: number;
 };
 
+export type NativeRemoteMessage = {
+	messageId?: string;
+	deliveryId?: string;
+	attributionToken?: string;
+	title?: string;
+	body?: string;
+	data?: Readonly<Record<string, string>>;
+	deepLink?: string;
+	actions?: ReadonlyArray<{ id: string; text: string; icon?: string }>;
+	actionId?: string;
+};
+
 export interface Spec extends TurboModule {
 	configure(
 		appId: string,
@@ -31,6 +43,7 @@ export interface Spec extends TurboModule {
 		defaultChannelName: string,
 		smallIconResourceName: string,
 		storageSuiteName: string,
+		displayForegroundNotifications: boolean,
 	): Promise<void>;
 	requestNotificationPermission(): Promise<boolean>;
 	register(): Promise<void>;
@@ -53,6 +66,13 @@ export interface Spec extends TurboModule {
 	): Promise<boolean>;
 	flushAcks(): Promise<void>;
 	getCapabilities(): Promise<NativeCapabilities>;
+	getToken(): Promise<string>;
+	getInitialNotification(): Promise<NativeRemoteMessage | null>;
+	presentNotification(messageJson: string): Promise<void>;
+	setBackgroundHandlerRegistered(registered: boolean): Promise<void>;
+	/** TurboModule event emitter contract. */
+	addListener(eventName: string): void;
+	removeListeners(count: number): void;
 	schedule(
 		id: string,
 		title: string,

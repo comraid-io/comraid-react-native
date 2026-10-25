@@ -1,5 +1,13 @@
 #import "RNComraid.h"
+
 @import ComRaid;
+#import <React/RCTBridge.h>
+#import <React/RCTBridgeModule.h>
+#import <React/RCTUtils.h>
+
+@interface RCTBridge (RNComraidCurrent)
++ (RCTBridge *)currentBridge;
+@end
 
 static NSDictionary *RNComraidData(NSString *json, NSError **error)
 {
@@ -22,6 +30,26 @@ static void RNComraidReject(NSError *error, RCTPromiseRejectBlock reject)
   reject(code, error.localizedDescription, error);
 }
 
+static void RNComraidEmitDeviceEvent(NSString *name, NSDictionary *body)
+{
+  RCTBridge *bridge = [RCTBridge currentBridge];
+  if (bridge == nil) {
+    return;
+  }
+  NSArray *args = body != nil ? @[ name, body ] : @[ name ];
+  [bridge enqueueJSCall:@"RCTDeviceEventEmitter" method:@"emit" args:args completion:NULL];
+}
+
+static void RNComraidEnsureEventEmitter(void)
+{
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    [[ComraidBridge shared] setEventEmitter:^(NSString *eventName, NSDictionary *payload) {
+      RNComraidEmitDeviceEvent(eventName, payload);
+    }];
+  });
+}
+
 @implementation RNComraid
 
 RCT_EXPORT_MODULE(Comraid)
@@ -33,9 +61,14 @@ defaultChannelId:(NSString *)defaultChannelId
 defaultChannelName:(NSString *)defaultChannelName
 smallIconResourceName:(NSString *)smallIconResourceName
  storageSuiteName:(NSString *)storageSuiteName
+displayForegroundNotifications:(BOOL)displayForegroundNotifications
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
+  (void)defaultChannelId;
+  (void)defaultChannelName;
+  (void)smallIconResourceName;
+  RNComraidEnsureEventEmitter();
   if (appId.length == 0) {
     reject(@"COMRAID_ERROR", @"appId is required (cr_app_…)", nil);
     return;
@@ -50,6 +83,7 @@ smallIconResourceName:(NSString *)smallIconResourceName
                                   apiBaseURL:base
                              apnsEnvironment:apnsEnvironment
                             storageSuiteName:suite
+             displayForegroundNotifications:displayForegroundNotifications
                                   completion:^(NSError *error) {
     if (error) {
       RNComraidReject(error, reject);
@@ -315,9 +349,76 @@ smallIconResourceName:(NSString *)smallIconResourceName
   }];
 }
 
+- (void)getToken:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject
+{
+  RNComraidEnsureEventEmitter();
+  [[ComraidBridge shared] getTokenWithCompletion:^(NSString *token, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(token ?: @"");
+    }
+  }];
+}
+
+- (void)getInitialNotification:(RCTPromiseResolveBlock)resolve
+                        reject:(RCTPromiseRejectBlock)reject
+{
+  RNComraidEnsureEventEmitter();
+  [[ComraidBridge shared] getInitialNotificationWithCompletion:^(NSDictionary *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value ?: (id)kCFNull);
+    }
+  }];
+}
+
+- (void)presentNotification:(NSString *)messageJson
+                    resolve:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+  RNComraidEnsureEventEmitter();
+  [[ComraidBridge shared] presentNotificationWithMessageJson:messageJson
+                                                  completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)setBackgroundHandlerRegistered:(BOOL)registered
+                               resolve:(RCTPromiseResolveBlock)resolve
+                                reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] setBackgroundHandlerRegistered:registered
+                                              completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)addListener:(NSString *)eventName
+{
+  (void)eventName;
+  RNComraidEnsureEventEmitter();
+}
+
+- (void)removeListeners:(double)count
+{
+  (void)count;
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
+  RNComraidEnsureEventEmitter();
   return std::make_shared<facebook::react::NativeComraidSpecJSI>(params);
 }
 

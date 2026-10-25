@@ -1,6 +1,8 @@
 package com.comraid.reactnative
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
@@ -11,19 +13,62 @@ import com.comraid.android.ComRaidNotification
 import com.comraid.android.ComRaidScheduleRequest
 import com.comraid.android.DeviceProperties
 import com.comraid.android.FallbackPolicy
+import com.comraid.android.RemoteMessageAction
+import com.comraid.android.RemoteMessageEvent
+import com.comraid.android.RemoteMessageListener
 import com.comraid.android.SchedulePrecision
+import com.comraid.android.TokenRefreshListener
+import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.WritableMap
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import org.json.JSONArray
 import org.json.JSONObject
 
 class ComraidModule(private val reactContext: ReactApplicationContext) :
-  NativeComraidSpec(reactContext), PermissionListener {
+  NativeComraidSpec(reactContext), PermissionListener, ActivityEventListener {
 
   private var permissionPromise: Promise? = null
+  private var listenersAttached = false
+
+  private val foregroundListener = RemoteMessageListener { event ->
+    emit(EVENT_MESSAGE, remoteMessageMap(event))
+  }
+  private val backgroundListener = RemoteMessageListener { event ->
+    emit(EVENT_BACKGROUND_MESSAGE, remoteMessageMap(event))
+  }
+  private val openedListener = RemoteMessageListener { event ->
+    emit(EVENT_NOTIFICATION_OPENED, remoteMessageMap(event))
+  }
+  private val tokenListener = TokenRefreshListener { token ->
+    emit(EVENT_TOKEN_REFRESH, Arguments.createMap().apply { putString("token", token) })
+  }
+
+  override fun initialize() {
+    super.initialize()
+    reactContext.addActivityEventListener(this)
+    attachNativeListeners()
+  }
+
+  override fun invalidate() {
+    reactContext.removeActivityEventListener(this)
+    detachNativeListeners()
+    super.invalidate()
+  }
+
+  override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
+    // No-op: ActivityEventListener requires both methods.
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    // Warm system-tray opens: Activity may already be running (singleTop / singleTask).
+    reactContext.currentActivity?.intent = intent
+    ComRaid.consumeLaunchIntent(intent, coldStart = false)
+  }
 
   override fun configure(
     appId: String,
@@ -33,6 +78,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     defaultChannelName: String,
     smallIconResourceName: String,
     storageSuiteName: String,
+    displayForegroundNotifications: Boolean,
     promise: Promise,
   ) = resolve(promise) {
     require(appId.isNotBlank()) { "appId is required (cr_app_…)" }
@@ -61,8 +107,14 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
         defaultChannelId = channelId,
         defaultChannelName = channelName,
         smallIconResourceId = icon,
+        displayForegroundNotifications = displayForegroundNotifications,
       ),
     )
+    attachNativeListeners()
+    // Cold-start: consume launcher extras once configure has a context.
+    reactContext.currentActivity?.intent?.let { intent ->
+      ComRaid.consumeLaunchIntent(intent, coldStart = true)
+    }
     null
   }
 
@@ -188,6 +240,32 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     null
   }
 
+  override fun getToken(promise: Promise) = resolve(promise) {
+    ComRaid.getToken()
+  }
+
+  override fun getInitialNotification(promise: Promise) = resolve(promise) {
+    ComRaid.getInitialNotification()?.let { remoteMessageMap(it) }
+  }
+
+  override fun presentNotification(messageJson: String, promise: Promise) = resolve(promise) {
+    ComRaid.presentNotification(parseRemoteMessage(messageJson))
+    null
+  }
+
+  override fun setBackgroundHandlerRegistered(registered: Boolean, promise: Promise) = resolve(promise) {
+    ComRaid.setBackgroundHandlerRegistered(registered)
+    null
+  }
+
+  override fun addListener(eventName: String) {
+    // Required for NativeEventEmitter; events are pushed via RCTDeviceEventEmitter.
+  }
+
+  override fun removeListeners(count: Double) {
+    // Required for NativeEventEmitter.
+  }
+
   override fun onRequestPermissionsResult(
     requestCode: Int,
     permissions: Array<String>,
@@ -270,6 +348,101 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     }
   }
 
+  private fun attachNativeListeners() {
+    if (listenersAttached) return
+    listenersAttached = true
+    ComRaid.addForegroundMessageListener(foregroundListener)
+    ComRaid.addBackgroundMessageListener(backgroundListener)
+    ComRaid.addNotificationOpenedListener(openedListener)
+    ComRaid.addTokenRefreshListener(tokenListener)
+  }
+
+  private fun detachNativeListeners() {
+    if (!listenersAttached) return
+    listenersAttached = false
+    ComRaid.removeForegroundMessageListener(foregroundListener)
+    ComRaid.removeBackgroundMessageListener(backgroundListener)
+    ComRaid.removeNotificationOpenedListener(openedListener)
+    ComRaid.removeTokenRefreshListener(tokenListener)
+  }
+
+  private fun emit(eventName: String, payload: WritableMap) {
+    if (!reactContext.hasActiveReactInstance()) return
+    reactContext
+      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      .emit(eventName, payload)
+  }
+
+  private fun remoteMessageMap(event: RemoteMessageEvent): WritableMap =
+    Arguments.createMap().apply {
+      event.messageId?.let { putString("messageId", it) }
+      event.deliveryId?.let { putString("deliveryId", it) }
+      event.attributionToken?.let { putString("attributionToken", it) }
+      event.title?.let { putString("title", it) }
+      event.body?.let { putString("body", it) }
+      event.deepLink?.let { putString("deepLink", it) }
+      event.actionId?.let { putString("actionId", it) }
+      putMap(
+        "data",
+        Arguments.createMap().apply {
+          event.data.forEach { (k, v) -> putString(k, v) }
+        },
+      )
+      if (event.actions.isNotEmpty()) {
+        putArray(
+          "actions",
+          Arguments.createArray().apply {
+            event.actions.forEach { action ->
+              pushMap(
+                Arguments.createMap().apply {
+                  putString("id", action.id)
+                  putString("text", action.text)
+                  action.icon?.let { putString("icon", it) }
+                },
+              )
+            }
+          },
+        )
+      }
+    }
+
+  private fun parseRemoteMessage(messageJson: String): RemoteMessageEvent {
+    val json = JSONObject(messageJson)
+    val dataJson = json.optJSONObject("data")
+    val data = buildMap<String, String> {
+      dataJson?.keys()?.forEach { key -> put(key, dataJson.optString(key)) }
+    }
+    val actionsJson = json.optJSONArray("actions")
+    val actions = buildList {
+      if (actionsJson != null) {
+        for (i in 0 until actionsJson.length()) {
+          val obj = actionsJson.optJSONObject(i) ?: continue
+          val id = obj.optString("id").trim()
+          val text = obj.optString("text").trim()
+          if (id.isEmpty() || text.isEmpty()) continue
+          add(
+            RemoteMessageAction(
+              id = id,
+              text = text,
+              icon = obj.optString("icon").trim().takeIf { it.isNotEmpty() },
+            ),
+          )
+        }
+      }
+    }
+    return RemoteMessageEvent(
+      messageId = json.optString("messageId").takeIf { it.isNotBlank() },
+      deliveryId = json.optString("deliveryId").takeIf { it.isNotBlank() },
+      attributionToken = json.optString("attributionToken").takeIf { it.isNotBlank() },
+      title = json.optString("title").takeIf { it.isNotBlank() },
+      body = json.optString("body").takeIf { it.isNotBlank() },
+      data = data,
+      deepLink = json.optString("deepLink").takeIf { it.isNotBlank() },
+      actions = actions,
+      actionId = json.optString("actionId").takeIf { it.isNotBlank() },
+    )
+  }
+
   private fun notification(id: String, title: String, body: String, dataJson: String): ComRaidNotification {
     val json = JSONObject(dataJson)
     val data = buildMap {
@@ -325,5 +498,9 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     private const val META_CHANNEL_NAME = "com.comraid.DEFAULT_CHANNEL_NAME"
     private const val META_SMALL_ICON = "com.comraid.SMALL_ICON_RESOURCE"
     private const val PERMISSION_REQUEST_CODE = 43_117
+    private const val EVENT_MESSAGE = "comraid_message"
+    private const val EVENT_BACKGROUND_MESSAGE = "comraid_background_message"
+    private const val EVENT_NOTIFICATION_OPENED = "comraid_notification_opened"
+    private const val EVENT_TOKEN_REFRESH = "comraid_token_refresh"
   }
 }
