@@ -50,7 +50,7 @@ test('grant → register → login when externalUserId is set', async () => {
 		'register',
 		['login', 'user_123', 'jwt-token'],
 	]);
-	assert.equal(result.status, 'subscribed');
+	assert.equal(result.status, 'registered');
 });
 
 test('grant → register only when identity is omitted', async () => {
@@ -60,7 +60,7 @@ test('grant → register only when identity is omitted', async () => {
 	const result = await runSubscribeFlow(deps, {});
 
 	assert.deepEqual(calls, ['requestNotificationPermission', 'register']);
-	assert.equal(result.status, 'subscribed');
+	assert.equal(result.status, 'registered');
 });
 
 test('deny → no register and no login', async () => {
@@ -135,7 +135,10 @@ test('flow never calls optIn or optOut', async () => {
 	assert.ok(!calls.includes('optOut'));
 });
 
-test('package entry re-exports runSubscribeFlow', () => {
+test('package entry does not export runSubscribeFlow (SubscribeBanner-only)', () => {
 	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
-	assert.match(index, /export \{[\s\S]*runSubscribeFlow/);
+	assert.doesNotMatch(index, /\brunSubscribeFlow\b/);
+	assert.doesNotMatch(index, /\bSubscribeFlowResult\b/);
+	assert.doesNotMatch(index, /\bSubscribeFlowDeps\b/);
+	assert.doesNotMatch(index, /\bSubscribeFlowOptions\b/);
 });

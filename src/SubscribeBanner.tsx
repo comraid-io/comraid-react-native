@@ -40,12 +40,13 @@ const DEFAULT_TITLE = 'Stay updated';
 const DEFAULT_SUBTITLE = 'Enable notifications to get updates from this app.';
 const DEFAULT_PRIMARY = 'Enable notifications';
 const DEFAULT_SECONDARY = 'Maybe later';
+const DEFAULT_TRY_AGAIN = 'Try again';
 const DEFAULT_DENIED =
 	'Notifications are off. You can enable them in your device Settings.';
 
 /**
  * Thin JS UI: OS permission → register Subscription → optional Login.
- * Uses `runSubscribeFlow` with the package `ComRaid` singleton (ADR 0004).
+ * Uses internal `runSubscribeFlow` with the package `ComRaid` singleton (ADR 0004).
  * Never calls Channel optIn/optOut.
  */
 export function SubscribeBanner({
@@ -101,6 +102,8 @@ export function SubscribeBanner({
 		}
 	}
 
+	const actionLabel = denied ? DEFAULT_TRY_AGAIN : primaryLabel;
+
 	return (
 		<View style={[styles.container, containerStyle]} accessibilityRole="summary">
 			<Text style={[styles.title, titleStyle]}>{title}</Text>
@@ -109,21 +112,29 @@ export function SubscribeBanner({
 			{errorMessage != null ? <Text style={styles.error}>{errorMessage}</Text> : null}
 			<Pressable
 				accessibilityRole="button"
-				accessibilityLabel={primaryLabel}
+				accessibilityLabel={actionLabel}
 				accessibilityState={{ disabled: loading, busy: loading }}
 				disabled={loading}
 				onPress={() => {
 					void handlePrimaryPress();
 				}}
-				style={[
-					styles.primaryButton,
-					{ backgroundColor: primaryColor, opacity: loading ? 0.7 : 1 },
-				]}
+				style={
+					denied
+						? styles.secondaryButton
+						: [
+								styles.primaryButton,
+								{ backgroundColor: primaryColor, opacity: loading ? 0.7 : 1 },
+							]
+				}
 			>
 				{loading ? (
-					<ActivityIndicator color="#FFFFFF" />
+					<ActivityIndicator color={denied ? secondaryColor : '#FFFFFF'} />
+				) : denied ? (
+					<Text style={[styles.secondaryLabel, { color: secondaryColor }]}>
+						{actionLabel}
+					</Text>
 				) : (
-					<Text style={styles.primaryLabel}>{primaryLabel}</Text>
+					<Text style={styles.primaryLabel}>{actionLabel}</Text>
 				)}
 			</Pressable>
 			<Pressable

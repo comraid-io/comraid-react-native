@@ -16,12 +16,6 @@ import {
 	type Unsubscribe,
 } from './createComRaid';
 import { ComRaid as comRaidInstance } from './instance';
-import {
-	runSubscribeFlow,
-	type SubscribeFlowDeps,
-	type SubscribeFlowOptions,
-	type SubscribeFlowResult,
-} from './runSubscribeFlow';
 import { SubscribeBanner, type SubscribeBannerProps } from './SubscribeBanner';
 
 export type {
@@ -40,13 +34,10 @@ export type {
 	ScheduleResult,
 	TimerOptions,
 	Unsubscribe,
-	SubscribeFlowDeps,
-	SubscribeFlowOptions,
-	SubscribeFlowResult,
 	SubscribeBannerProps,
 };
 
-export { runSubscribeFlow, SubscribeBanner };
+export { SubscribeBanner };
 
 export const ComRaid = comRaidInstance;
 
