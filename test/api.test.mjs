@@ -112,6 +112,10 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 		),
 		path.join(
 			root,
+			'../../../comraid-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
+		),
+		path.join(
+			root,
 			'../android-03/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
 		),
 	];
@@ -129,6 +133,10 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 		path.join(
 			root,
 			'../comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
+		),
+		path.join(
+			root,
+			'../../../comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
 		),
 		path.join(
 			root,

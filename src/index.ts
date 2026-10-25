@@ -18,6 +18,12 @@ import {
 	type Unsubscribe,
 } from './createComRaid';
 import NativeComraid from './NativeComraid';
+import {
+	runSubscribeFlow,
+	type SubscribeFlowDeps,
+	type SubscribeFlowOptions,
+	type SubscribeFlowResult,
+} from './runSubscribeFlow';
 
 export type {
 	APNsEnvironment,
@@ -35,7 +41,12 @@ export type {
 	ScheduleResult,
 	TimerOptions,
 	Unsubscribe,
+	SubscribeFlowDeps,
+	SubscribeFlowOptions,
+	SubscribeFlowResult,
 };
+
+export { runSubscribeFlow };
 
 const eventEmitter = NativeComraid != null ? new NativeEventEmitter(NativeComraid) : null;
 
