@@ -49,6 +49,31 @@ await ComRaid.logout(); // Subscription becomes Inactive
 
 Logout means Inactive (Endpoint state). Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
 
+### SubscribeBanner (optional UI)
+
+After `initialize`, drop in `SubscribeBanner` for permission → register Subscription → optional Login. Host owns visibility / re-prompt via `onDismiss` (no SDK snooze storage). Never calls Channel `optIn` / `optOut`.
+
+```tsx
+import { useState } from 'react';
+import { ComRaid, SubscribeBanner } from '@comraid/react-native';
+
+await ComRaid.initialize({ /* … */ });
+
+function Prompt() {
+  const [visible, setVisible] = useState(true);
+  if (!visible) return null;
+  return (
+    <SubscribeBanner
+      externalUserId="user_123" // omit for Anonymous contact after register
+      // jwt={jwtFromYourBackend}
+      onDismiss={() => setVisible(false)}
+      onSuccess={() => setVisible(false)}
+      onError={(err) => console.warn(err)}
+    />
+  );
+}
+```
+
 ## Method reference
 
 Public surface is `ComRaid` from `src/index.ts` (TurboModule `NativeComraid.ts`). Grouped by lifecycle. Examples are clustered per group, not per method.
