@@ -51,6 +51,16 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /ComRaid\.presentNotification/);
 	assert.match(moduleKt, /ComRaid\.setBackgroundHandlerRegistered/);
 	assert.match(moduleKt, /displayForegroundNotifications/);
+	// Test sends omit delivery IDs; bridge must treat them as optional, not throw.
+	assert.match(
+		moduleKt,
+		/deliveryId = json\.optString\("deliveryId"\)\.takeIf \{ it\.isNotBlank\(\) \}/,
+	);
+	assert.match(
+		moduleKt,
+		/attributionToken = json\.optString\("attributionToken"\)\.takeIf \{ it\.isNotBlank\(\) \}/,
+	);
+	assert.match(moduleKt, /event\.deliveryId\?\.let \{ putString\("deliveryId", it\) \}/);
 });
 
 test('iOS bridge forwards attribute, properties, and ACK APIs to ComraidBridge', () => {

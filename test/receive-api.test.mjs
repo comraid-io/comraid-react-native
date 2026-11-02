@@ -221,6 +221,58 @@ test('background receive handler runs without auto acknowledgeOpened', async () 
 	assert.equal(calls.acknowledgeDelivered.length, 0);
 });
 
+test('test send without delivery ids: receive and present, no ack attempts', async () => {
+	const { createComRaid, EVENT_MESSAGE, EVENT_NOTIFICATION_OPENED } = await loadCreateComRaid();
+	const { native, calls } = mockNative();
+	const { bus, emit } = mockEvents();
+	const api = createComRaid(native, bus);
+
+	/** @type {import('../lib/typescript/src/createComRaid').RemoteMessage | null} */
+	let received = null;
+	api.onMessage(message => {
+		received = message;
+	});
+	emit(EVENT_MESSAGE, {
+		messageId: 'm-test',
+		title: 'Test',
+		body: 'No delivery ids',
+		data: { path: '/test' },
+	});
+	assert.ok(received);
+	assert.equal(received.deliveryId, undefined);
+	assert.equal(received.attributionToken, undefined);
+	assert.deepEqual(received.data, { path: '/test' });
+	assert.equal(calls.acknowledgeDelivered.length, 0);
+	assert.equal(calls.acknowledgeOpened.length, 0);
+
+	await api.presentNotification({
+		title: 'Test',
+		body: 'No delivery ids',
+		data: { path: '/test' },
+	});
+	assert.equal(calls.presentNotification.length, 1);
+	const parsed = JSON.parse(calls.presentNotification[0]);
+	assert.equal(parsed.deliveryId, undefined);
+	assert.equal(parsed.attributionToken, undefined);
+
+	const opened = [];
+	api.onNotificationOpenedApp(message => opened.push(message));
+	emit(EVENT_NOTIFICATION_OPENED, {
+		title: 'Test',
+		body: 'Tap',
+		data: {},
+	});
+	assert.equal(opened.length, 1);
+	assert.equal(opened[0].deliveryId, undefined);
+	assert.equal(calls.acknowledgeOpened.length, 0);
+
+	assert.equal(await api.acknowledgeDelivered('', ''), false);
+	assert.equal(await api.acknowledgeOpened('  ', 'tok'), false);
+	assert.equal(await api.acknowledgeOpened('d1', ''), false);
+	assert.equal(calls.acknowledgeDelivered.length, 0);
+	assert.equal(calls.acknowledgeOpened.length, 0);
+});
+
 test('onNotificationOpenedApp surfaces open events including actionId', async () => {
 	const { createComRaid, EVENT_NOTIFICATION_OPENED } = await loadCreateComRaid();
 	const { native } = mockNative();

@@ -276,8 +276,9 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 			await native().setAttributes(JSON.stringify(attributes));
 		},
 
-		/** Enqueue + flush a delivered ACK. Returns false when ids are blank. */
+		/** Enqueue + flush a delivered ACK. Returns false when ids are blank (e.g. Test send). */
 		async acknowledgeDelivered(deliveryId: string, attributionToken: string): Promise<boolean> {
+			if (!deliveryId.trim() || !attributionToken.trim()) return false;
 			return native().acknowledgeDelivered(deliveryId, attributionToken);
 		},
 
@@ -287,6 +288,7 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 			attributionToken: string,
 			actionId?: string,
 		): Promise<boolean> {
+			if (!deliveryId.trim() || !attributionToken.trim()) return false;
 			return native().acknowledgeOpened(deliveryId, attributionToken, actionId ?? '');
 		},
 
