@@ -153,15 +153,7 @@ function modifySwiftAppDelegate(src) {
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
     RNComraidPushDelegate.setDeviceToken(deviceToken)
   }`;
-    const merged = mergeContents({
-      src: next,
-      newSrc: tokenMethod,
-      tag: `${APP_DELEGATE_TAG}-token`,
-      anchor: /}\s*$/,
-      offset: 0,
-      comment: '//',
-    });
-    next = merged.contents;
+    next = insertBeforeAppDelegateClassEnd(next, tokenMethod, `${APP_DELEGATE_TAG}-token`);
   } else if (!next.includes('RNComraidPushDelegate.setDeviceToken')) {
     const merged = mergeContents({
       src: next,
@@ -183,15 +175,7 @@ function modifySwiftAppDelegate(src) {
   ) {
     RNComraidPushDelegate.handleRemoteNotification(userInfo, fetchCompletionHandler: completionHandler)
   }`;
-    const merged = mergeContents({
-      src: next,
-      newSrc: fetchMethod,
-      tag: `${APP_DELEGATE_TAG}-fetch`,
-      anchor: /}\s*$/,
-      offset: 0,
-      comment: '//',
-    });
-    next = merged.contents;
+    next = insertBeforeAppDelegateClassEnd(next, fetchMethod, `${APP_DELEGATE_TAG}-fetch`);
   } else if (!next.includes('RNComraidPushDelegate.handleRemoteNotification')) {
     const merged = mergeContents({
       src: next,
@@ -206,6 +190,39 @@ function modifySwiftAppDelegate(src) {
   }
 
   return next;
+}
+
+/**
+ * Inserts a tagged block just before the closing brace of the Swift `AppDelegate` class.
+ * mergeContents anchors on the first matching line, which for `}` is inside the first method.
+ */
+function insertBeforeAppDelegateClassEnd(src, block, tag) {
+  const lines = src.split('\n');
+  const start = lines.findIndex(line => /\bclass\s+AppDelegate\b/.test(line));
+  if (start === -1) return src;
+  let depth = 0;
+  let opened = false;
+  for (let i = start; i < lines.length; i++) {
+    for (const ch of lines[i]) {
+      if (ch === '{') {
+        depth++;
+        opened = true;
+      } else if (ch === '}') {
+        depth--;
+      }
+    }
+    if (opened && depth === 0) {
+      lines.splice(
+        i,
+        0,
+        `// @generated begin ${tag} - expo prebuild (DO NOT MODIFY)`,
+        ...block.split('\n'),
+        `// @generated end ${tag}`,
+      );
+      return lines.join('\n');
+    }
+  }
+  return src;
 }
 
 function modifyObjCAppDelegate(src) {

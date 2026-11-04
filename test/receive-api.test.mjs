@@ -31,7 +31,7 @@ function mockNative(overrides = {}) {
 			calls.configure.push(args);
 		},
 		requestNotificationPermission: async () => true,
-		register: async () => {},
+		registerSubscription: async () => {},
 		login: async () => {},
 		logout: async () => {},
 		optIn: async () => {},
@@ -173,6 +173,7 @@ test('initialize passes foreground display opt-out to native configure', async (
 	const args = calls.configure[0];
 	assert.equal(args[0], 'cr_app_test');
 	assert.equal(args[7], false);
+	assert.equal(args[8], '');
 });
 
 test('presentNotification invokes native with message JSON', async () => {
@@ -301,3 +302,12 @@ test('getInitialNotification returns null when native has none', async () => {
 
 // Keep require available for environments that resolve CJS helpers.
 void require;
+
+test('initialize forwards the Android accent colour to native configure', async () => {
+	const { createComRaid } = await loadCreateComRaid();
+	const { native, calls } = mockNative();
+	const { bus } = mockEvents();
+	const api = createComRaid(native, bus);
+	await api.initialize({ appId: 'cr_app_test', android: { accentColor: '#FF5722' } });
+	assert.equal(calls.configure[0][8], '#FF5722');
+});

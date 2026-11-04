@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -28,11 +29,13 @@ import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.Executors
 
 class ComraidModule(private val reactContext: ReactApplicationContext) :
   NativeComraidSpec(reactContext), PermissionListener, ActivityEventListener {
 
   private var permissionPromise: Promise? = null
+  private val registerExecutor = Executors.newSingleThreadExecutor()
   private var listenersAttached = false
 
   private val foregroundListener = RemoteMessageListener { event ->
@@ -57,6 +60,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   override fun invalidate() {
     reactContext.removeActivityEventListener(this)
     detachNativeListeners()
+    registerExecutor.shutdown()
     super.invalidate()
   }
 
@@ -79,6 +83,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     smallIconResourceName: String,
     storageSuiteName: String,
     displayForegroundNotifications: Boolean,
+    accentColor: String,
     promise: Promise,
   ) = resolve(promise) {
     require(appId.isNotBlank()) { "appId is required (cr_app_…)" }
@@ -99,6 +104,12 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       .takeIf { it != 0 }
       ?: reactContext.resources.getIdentifier(iconName, "mipmap", reactContext.packageName)
     require(icon != 0) { "Android notification icon '$iconName' was not found" }
+    val colorHex = accentColor.ifBlank { metadata?.getString(META_NOTIFICATION_COLOR).orEmpty() }.trim()
+    val color = colorHex.takeIf { it.isNotEmpty() }?.let { hex ->
+      runCatching { Color.parseColor(hex) }.getOrElse {
+        throw IllegalArgumentException("Android accentColor '$hex' must be #RRGGBB or #AARRGGBB")
+      }
+    }
     ComRaid.configure(
       reactContext,
       ComRaidConfiguration(
@@ -108,6 +119,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
         defaultChannelName = channelName,
         smallIconResourceId = icon,
         displayForegroundNotifications = displayForegroundNotifications,
+        accentColor = color,
       ),
     )
     attachNativeListeners()
@@ -162,7 +174,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     )
   }
 
-  override fun register(promise: Promise) = resolve(promise) {
+  override fun registerSubscription(promise: Promise) = resolve(promise) {
     ComRaid.register()
     null
   }
@@ -276,11 +288,14 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     val promise = permissionPromise
     permissionPromise = null
     if (granted && NotificationManagerCompat.from(reactContext).areNotificationsEnabled()) {
-      try {
-        ComRaid.register()
-        promise?.resolve(true)
-      } catch (error: Throwable) {
-        promise?.reject("COMRAID_ERROR", error.message, error)
+      // Permission results arrive on the UI thread; register waits on the FCM token and the network.
+      registerExecutor.execute {
+        try {
+          ComRaid.register()
+          promise?.resolve(true)
+        } catch (error: Throwable) {
+          promise?.reject("COMRAID_ERROR", error.message, error)
+        }
       }
     } else {
       promise?.resolve(false)
@@ -497,6 +512,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     private const val META_CHANNEL_ID = "com.comraid.DEFAULT_CHANNEL_ID"
     private const val META_CHANNEL_NAME = "com.comraid.DEFAULT_CHANNEL_NAME"
     private const val META_SMALL_ICON = "com.comraid.SMALL_ICON_RESOURCE"
+    private const val META_NOTIFICATION_COLOR = "com.comraid.DEFAULT_NOTIFICATION_COLOR"
     private const val PERMISSION_REQUEST_CODE = 43_117
     private const val EVENT_MESSAGE = "comraid_message"
     private const val EVENT_BACKGROUND_MESSAGE = "comraid_background_message"

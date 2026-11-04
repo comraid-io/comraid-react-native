@@ -68,6 +68,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 				ios: {
 					apnsEnvironment,
 					storageSuiteName: 'io.comraid.example.comraid',
+					// Push images and cold-device action buttons.
+					notificationServiceExtension: true,
 				},
 			},
 		],

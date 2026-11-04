@@ -1,13 +1,18 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+
 const {
   AndroidConfig,
   createRunOncePlugin,
   withAndroidManifest,
   withAppBuildGradle,
   withAppDelegate,
+  withDangerousMod,
   withEntitlementsPlist,
   withInfoPlist,
+  withXcodeProject,
 } = require('@expo/config-plugins');
 
 const {
@@ -18,6 +23,12 @@ const {
   ensureNotificationColorMeta,
   modifyAppDelegate,
 } = require('./android-ios-helpers');
+const {
+  addEasAppExtension,
+  addNotificationServicePodTarget,
+  addNotificationServiceTarget,
+  writeNotificationServiceFiles,
+} = require('./notification-service-extension');
 
 const pkg = require('../../package.json');
 
@@ -105,6 +116,45 @@ function withComRaid(config, options = {}) {
     });
   }
 
+  if (ios.notificationServiceExtension === true) {
+    config = withNotificationServiceExtension(config, ios);
+  }
+
+  return config;
+}
+
+/** Images and cold-device action buttons on iOS need a Notification Service Extension. */
+function withNotificationServiceExtension(config, ios) {
+  const bundleIdentifier = config.ios?.bundleIdentifier;
+  if (!bundleIdentifier) {
+    throw new Error(
+      '@comraid/react-native: ios.notificationServiceExtension needs expo.ios.bundleIdentifier',
+    );
+  }
+  const versions = {
+    version: config.version ?? '1.0.0',
+    buildNumber: config.ios?.buildNumber ?? '1',
+  };
+  config = addEasAppExtension(config, bundleIdentifier);
+  config = withDangerousMod(config, [
+    'ios',
+    current => {
+      const iosRoot = current.modRequest.platformProjectRoot;
+      writeNotificationServiceFiles(iosRoot, versions);
+      const podfilePath = path.join(iosRoot, 'Podfile');
+      const podfile = fs.readFileSync(podfilePath, 'utf8');
+      fs.writeFileSync(podfilePath, addNotificationServicePodTarget(podfile));
+      return current;
+    },
+  ]);
+  config = withXcodeProject(config, current => {
+    addNotificationServiceTarget(current.modResults, {
+      bundleIdentifier,
+      developmentTeam: ios.appleTeamId ?? config.ios?.appleTeamId,
+      ...versions,
+    });
+    return current;
+  });
   return config;
 }
 

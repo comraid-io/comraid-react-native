@@ -62,12 +62,14 @@ defaultChannelName:(NSString *)defaultChannelName
 smallIconResourceName:(NSString *)smallIconResourceName
  storageSuiteName:(NSString *)storageSuiteName
 displayForegroundNotifications:(BOOL)displayForegroundNotifications
+      accentColor:(NSString *)accentColor
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
   (void)defaultChannelId;
   (void)defaultChannelName;
   (void)smallIconResourceName;
+  (void)accentColor;
   RNComraidEnsureEventEmitter();
   if (appId.length == 0) {
     reject(@"COMRAID_ERROR", @"appId is required (cr_app_…)", nil);
@@ -117,8 +119,8 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
   }];
 }
 
-- (void)register:(RCTPromiseResolveBlock)resolve
-          reject:(RCTPromiseRejectBlock)reject
+- (void)registerSubscription:(RCTPromiseResolveBlock)resolve
+                      reject:(RCTPromiseRejectBlock)reject
 {
   [[ComraidBridge shared] registerWithCompletion:^(NSError *error) {
     if (error) {
@@ -161,7 +163,7 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
 - (void)optIn:(RCTPromiseResolveBlock)resolve
        reject:(RCTPromiseRejectBlock)reject
 {
-  [[ComraidBridge shared] optInWithCompletion:^(NSError *error) {
+  [[ComraidBridge shared] optInCompletion:^(NSError *error) {
     if (error) {
       RNComraidReject(error, reject);
     } else {

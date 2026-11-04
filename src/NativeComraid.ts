@@ -1,4 +1,4 @@
-import { TurboModuleRegistry, type TurboModule } from 'react-native';
+import { TurboModuleRegistry, type CodegenTypes, type TurboModule } from 'react-native';
 
 export type NativeCapabilities = {
 	platform: string;
@@ -44,9 +44,11 @@ export interface Spec extends TurboModule {
 		smallIconResourceName: string,
 		storageSuiteName: string,
 		displayForegroundNotifications: boolean,
+		accentColor: string,
 	): Promise<void>;
 	requestNotificationPermission(): Promise<boolean>;
-	register(): Promise<void>;
+	/** JS `register()`; `register` is a C++ keyword, which breaks the generated JSI spec. */
+	registerSubscription(): Promise<void>;
 	login(externalUserId: string, jwt: string): Promise<void>;
 	logout(): Promise<void>;
 	optIn(): Promise<void>;
@@ -67,7 +69,8 @@ export interface Spec extends TurboModule {
 	flushAcks(): Promise<void>;
 	getCapabilities(): Promise<NativeCapabilities>;
 	getToken(): Promise<string>;
-	getInitialNotification(): Promise<NativeRemoteMessage | null>;
+	/** Resolves a `NativeRemoteMessage`; codegen cannot type string maps, so it is untyped here. */
+	getInitialNotification(): Promise<CodegenTypes.UnsafeObject | null>;
 	presentNotification(messageJson: string): Promise<void>;
 	setBackgroundHandlerRegistered(registered: boolean): Promise<void>;
 	/** TurboModule event emitter contract. */

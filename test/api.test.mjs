@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +53,10 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /ComRaid\.presentNotification/);
 	assert.match(moduleKt, /ComRaid\.setBackgroundHandlerRegistered/);
 	assert.match(moduleKt, /displayForegroundNotifications/);
+	assert.match(moduleKt, /accentColor = color/);
+	assert.match(moduleKt, /com\.comraid\.DEFAULT_NOTIFICATION_COLOR/);
+	// Permission results arrive on the UI thread; register must not block it.
+	assert.match(moduleKt, /registerExecutor\.execute \{\s+try \{\s+ComRaid\.register\(\)/);
 	// Test sends omit delivery IDs; bridge must treat them as optional, not throw.
 	assert.match(
 		moduleKt,
@@ -161,4 +167,25 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 		fs.readFileSync(mobileClient, 'utf8'),
 		/\/mobile\/subscriptions\/\$subscriptionId\/attributes/,
 	);
+});
+
+test('TurboModule Spec passes React Native codegen', () => {
+	// Pod install / Gradle run codegen; an unsupported type (e.g. Record) breaks every native build.
+	const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'comraid-codegen-')), 'schema.json');
+	execFileSync(
+		process.execPath,
+		[
+			path.join(root, 'node_modules/@react-native/codegen/lib/cli/combine/combine-js-to-schema-cli.js'),
+			out,
+			path.join(root, 'src/NativeComraid.ts'),
+		],
+		{ stdio: 'pipe' },
+	);
+	const schema = JSON.parse(fs.readFileSync(out, 'utf8'));
+	const methods = schema.modules.NativeComraid.spec.methods.map(method => method.name);
+	assert.ok(methods.includes('getInitialNotification'));
+	// Method names become C++ members in the generated JSI header.
+	const cppKeywords = ['register', 'delete', 'new', 'default', 'class', 'template', 'namespace', 'operator'];
+	assert.deepEqual(methods.filter(name => cppKeywords.includes(name)), []);
+	assert.ok(methods.includes('configure'));
 });

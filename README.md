@@ -91,6 +91,7 @@ Stores settings on the native SDKs. Does not register a Subscription — call `r
 | `options.android.defaultChannelId` | `string` | no | Android notification channel id |
 | `options.android.defaultChannelName` | `string` | no | Android notification channel name |
 | `options.android.smallIconResourceName` | `string` | no | Drawable resource name for the small icon |
+| `options.android.accentColor` | `string` | no | `#RRGGBB` / `#AARRGGBB` tint for the small icon and action buttons on SDK-drawn notifications; defaults to the plugin's `defaultNotificationColor` |
 | `options.ios.apnsEnvironment` | `'sandbox' \| 'production'` | yes on iOS | APNs environment |
 | `options.ios.storageSuiteName` | `string` | no | Optional iOS storage suite |
 
@@ -355,6 +356,39 @@ Validate inputs in JS before the TurboModule call; treat native rejections as op
 
 This package does not add a second push stack or Message-send APIs. Rich fields are sent via the public API / `@comraid/node` / dashboard. On open, read `cr_deep_link` from the native notification payload (FCM data / APNs `userInfo`, or Expo `notification.request.content.data`) and route in your app — see the Android and iOS SDK READMEs (“Deep links and rich fields”).
 
+## Images, sounds and action buttons
+
+The native SDKs apply rich fields from the push; nothing extra is needed in JS.
+
+- **Android:** when the SDK draws the notification (action buttons, or the app is in the foreground) it shows `image_url` as an expanded picture, long `body` text as expandable text, `actions[].icon` from your app's `res/drawable`, `thread_id` as the notification tag, `badge` as the notification count, and `sound` from your app's `res/raw`. On Android 8+ the channel's sound plays, so set sounds on the category. See the Android SDK README.
+- **iOS:** the system applies `sound`, `badge` and `thread-id` for standard alerts. Images, and action buttons on a device that has not seen them yet, need a **Notification Service Extension** — set `ios.notificationServiceExtension: true` on the Expo plugin (below), or add one by hand in a bare app.
+
+### Notification Service Extension in a bare React Native app
+
+Add a Notification Service Extension target in Xcode, replace its `NotificationService.swift` with:
+
+```swift
+import ComRaid
+import UserNotifications
+
+final class NotificationService: UNNotificationServiceExtension {
+  override func didReceive(
+    _ request: UNNotificationRequest,
+    withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void
+  ) {
+    Task { contentHandler(await RemoteNotificationDisplay.enrich(request)) }
+  }
+}
+```
+
+and link `ComRaid` to it in your `Podfile`, outside the app target:
+
+```ruby
+target 'NotificationService' do
+  pod 'ComRaid'
+end
+```
+
 ## Expo config plugin
 
 Zero-hand-edit happy path: add the plugin, point at `google-services.json`, set APNs environment, then `npx expo prebuild`. No manual AppDelegate or Gradle edits for register/receive.
@@ -377,7 +411,8 @@ Zero-hand-edit happy path: add the plugin, point at `google-services.json`, set 
           },
           "ios": {
             "storageSuiteName": "com.example.app.comraid",
-            "apnsEnvironment": "sandbox"
+            "apnsEnvironment": "sandbox",
+            "notificationServiceExtension": true
           }
         }
       ]
@@ -390,12 +425,13 @@ You may also pass `android.googleServicesFile` as a plugin option (same path). T
 
 - Applies the `com.google.gms.google-services` Gradle plugin and copies `google-services.json` when `android.googleServicesFile` is set (Expo config or plugin option)
 - Adds the host `firebase-messaging` dependency (required because the Android SDK depends on FCM as `compileOnly`)
-- Writes Android meta-data for default channel id/name, small icon, and optional notification color (`com.comraid.*`)
+- Writes Android meta-data for default channel id/name, small icon, and optional notification color (`com.comraid.*`); the color becomes the default `android.accentColor`
 - Declares `POST_NOTIFICATIONS`
 - Registers `com.comraid.android.internal.ComraidMessagingService` for FCM (disable with `android.includeMessagingService: false` if the host subclasses it)
 - Adds iOS `UIBackgroundModes` `remote-notification`
 - Sets `aps-environment` when `ios.apnsEnvironment` is `sandbox` or `production`
 - Wires AppDelegate for APNs token + `UNUserNotificationCenter` delegate via `RNComraidPushDelegate` (disable with `ios.wireAppDelegate: false` for bare apps that install the delegate themselves)
+- With `ios.notificationServiceExtension: true`, adds a `ComRaidNotificationService` Notification Service Extension (bundle id `<app bundle id>.ComRaidNotificationService`) that shows push images and action buttons, links it to the `ComRaid` pod, and registers it with EAS Build (`extra.eas.build.experimental.ios.appExtensions`). It signs with `ios.appleTeamId` (plugin option or Expo `ios.appleTeamId`), else the app target's team. If your Podfile pins `ComRaid` to a `:path` or `:git` source, give the `ComRaidNotificationService` target the same source.
 
 App ID is passed at runtime via `initialize`, not only in the plugin. Create the Firebase project / APNs key in the provider consoles; the plugin only applies the native wiring.
 

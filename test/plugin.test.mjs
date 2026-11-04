@@ -95,6 +95,10 @@ public class AppDelegate: ExpoAppDelegate {
 		/didReceiveRemoteNotification[\s\S]*fetchCompletionHandler[\s\S]*RNComraidPushDelegate\.handleRemoteNotification/,
 	);
 	assert.equal(modifyAppDelegate(next, 'swift'), next);
+	// The new methods are AppDelegate members, not nested inside didFinishLaunching.
+	const launchBody = next.slice(next.indexOf('didFinishLaunchingWithOptions'), next.indexOf('didRegisterFor'));
+	assert.match(launchBody, /return super\.application[^\n]*\n  \}/);
+	assert.match(next, /RNComraidPushDelegate\.handleRemoteNotification[^\n]*\n  \}\n\/\/ @generated end comraid-push-fetch\n\}/);
 });
 
 test('Expo helpers wire APNs token + notification delegate in ObjC AppDelegate', () => {
@@ -151,4 +155,42 @@ public class AppDelegate: ExpoAppDelegate {
 		/didReceiveRemoteNotification[\s\S]*fetchCompletionHandler[\s\S]*RNComraidPushDelegate\.handleRemoteNotification/,
 	);
 	assert.equal(modifyAppDelegate(next, 'swift'), next);
+});
+
+test('Notification Service Extension Podfile target links ComRaid once', async () => {
+	const { addNotificationServicePodTarget, NSE_TARGET_NAME } = await import(
+		'../plugin/build/notification-service-extension.js'
+	);
+	const podfile = "target 'App' do\n  use_expo_modules!\nend\n";
+	const next = addNotificationServicePodTarget(podfile);
+	assert.match(next, new RegExp(`target '${NSE_TARGET_NAME}' do\\n  pod 'ComRaid'\\nend`));
+	assert.ok(next.startsWith(podfile.trimEnd()));
+	assert.equal(addNotificationServicePodTarget(next), next);
+});
+
+test('Notification Service Extension source enriches through RemoteNotificationDisplay', async () => {
+	const { NSE_SWIFT_SOURCE, notificationServicePlist } = await import(
+		'../plugin/build/notification-service-extension.js'
+	);
+	assert.match(NSE_SWIFT_SOURCE, /import ComRaid/);
+	assert.match(NSE_SWIFT_SOURCE, /RemoteNotificationDisplay\.enrich\(request\)/);
+	assert.match(NSE_SWIFT_SOURCE, /serviceExtensionTimeWillExpire/);
+	const plist = notificationServicePlist({ version: '2.1.0', buildNumber: '42' });
+	assert.match(plist, /com\.apple\.usernotifications\.service/);
+	assert.match(plist, /<string>2\.1\.0<\/string>/);
+	assert.match(plist, /<string>42<\/string>/);
+});
+
+test('Notification Service Extension registers once with EAS Build', async () => {
+	const { addEasAppExtension, NSE_TARGET_NAME } = await import(
+		'../plugin/build/notification-service-extension.js'
+	);
+	const config = addEasAppExtension(addEasAppExtension({}, 'com.example.app'), 'com.example.app');
+	assert.deepEqual(config.extra.eas.build.experimental.ios.appExtensions, [
+		{
+			targetName: NSE_TARGET_NAME,
+			bundleIdentifier: `com.example.app.${NSE_TARGET_NAME}`,
+			entitlements: {},
+		},
+	]);
 });

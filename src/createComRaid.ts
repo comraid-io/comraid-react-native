@@ -18,6 +18,11 @@ export interface ConfigureOptions {
 		defaultChannelId?: string;
 		defaultChannelName?: string;
 		smallIconResourceName?: string;
+		/**
+		 * Tint for the small icon and action buttons on SDK-drawn notifications,
+		 * as `#RRGGBB` or `#AARRGGBB`. Defaults to the Expo plugin's `defaultNotificationColor`.
+		 */
+		accentColor?: string;
 	};
 	ios?: {
 		/** Required on iOS. */
@@ -211,6 +216,7 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 				options.android?.smallIconResourceName ?? '',
 				options.ios?.storageSuiteName ?? '',
 				options.displayForegroundNotifications !== false,
+				options.android?.accentColor ?? '',
 			);
 		},
 
@@ -228,7 +234,7 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 		},
 
 		async register(): Promise<void> {
-			await native().register();
+			await native().registerSubscription();
 		},
 
 		async login(externalUserId: string, jwt?: string): Promise<void> {

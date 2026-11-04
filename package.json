@@ -33,7 +33,7 @@
     "prepare": "bob build",
     "typecheck": "tsc",
     "test": "node --test test/*.test.mjs",
-    "check": "npm run typecheck && npm run prepare && node --check app.plugin.js && node --check plugin/build/index.js && node --check plugin/build/android-ios-helpers.js && node scripts/check-naming.mjs && npm test",
+    "check": "npm run typecheck && npm run prepare && node --check app.plugin.js && node --check plugin/build/index.js && node --check plugin/build/android-ios-helpers.js && node --check plugin/build/notification-service-extension.js && node scripts/check-naming.mjs && npm test",
     "check:naming": "node scripts/check-naming.mjs",
     "pack:check": "npm pack --dry-run"
   },
