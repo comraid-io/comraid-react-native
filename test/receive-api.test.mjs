@@ -139,6 +139,31 @@ test('onMessage delivers RNFirebase-shaped payload; sender data keys unchanged',
 	assert.equal(received.actions?.[0]?.id, 'accept');
 });
 
+test('onMessage keeps presentation fields and drops invalid badges', async () => {
+	const { createComRaid, EVENT_MESSAGE } = await loadCreateComRaid();
+	const { native } = mockNative();
+	const { bus, emit } = mockEvents();
+	const api = createComRaid(native, bus);
+	const received = [];
+	api.onMessage(message => received.push(message));
+	emit(EVENT_MESSAGE, {
+		title: 'Hello',
+		data: {},
+		imageUrl: 'https://cdn.example.com/a.png',
+		sound: 'chime',
+		badge: 3,
+		threadId: 'order-42',
+		androidChannelId: 'orders',
+	});
+	emit(EVENT_MESSAGE, { title: 'Hello', data: {}, badge: -1 });
+	assert.equal(received[0].imageUrl, 'https://cdn.example.com/a.png');
+	assert.equal(received[0].sound, 'chime');
+	assert.equal(received[0].badge, 3);
+	assert.equal(received[0].threadId, 'order-42');
+	assert.equal(received[0].androidChannelId, 'orders');
+	assert.equal(received[1].badge, undefined);
+});
+
 test('getToken returns Provider token from TurboModule', async () => {
 	const { createComRaid } = await loadCreateComRaid();
 	const { native, calls } = mockNative();

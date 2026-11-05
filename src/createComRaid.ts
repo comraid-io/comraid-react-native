@@ -101,6 +101,15 @@ export interface RemoteMessage {
 	deepLink?: string;
 	actions?: ReadonlyArray<RemoteMessageAction>;
 	actionId?: string;
+	/** Push image (`content.push.image_url`); `presentNotification` shows it. */
+	imageUrl?: string;
+	/** Sound name (`chime` on Android `res/raw`, `chime.caf` bundled on iOS). */
+	sound?: string;
+	badge?: number;
+	/** Thread / tag (`content.push.thread_id`). */
+	threadId?: string;
+	/** Android only: notification channel for the push's category. */
+	androidChannelId?: string;
 }
 
 export type Unsubscribe = () => void;
@@ -149,6 +158,15 @@ function parseRemoteMessage(raw: unknown): RemoteMessage {
 		deepLink: typeof value.deepLink === 'string' ? value.deepLink : undefined,
 		actions,
 		actionId: typeof value.actionId === 'string' ? value.actionId : undefined,
+		imageUrl: typeof value.imageUrl === 'string' ? value.imageUrl : undefined,
+		sound: typeof value.sound === 'string' ? value.sound : undefined,
+		badge:
+			typeof value.badge === 'number' && Number.isInteger(value.badge) && value.badge >= 0
+				? value.badge
+				: undefined,
+		threadId: typeof value.threadId === 'string' ? value.threadId : undefined,
+		androidChannelId:
+			typeof value.androidChannelId === 'string' ? value.androidChannelId : undefined,
 	};
 }
 

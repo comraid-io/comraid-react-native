@@ -397,6 +397,11 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       event.body?.let { putString("body", it) }
       event.deepLink?.let { putString("deepLink", it) }
       event.actionId?.let { putString("actionId", it) }
+      event.imageUrl?.let { putString("imageUrl", it) }
+      event.sound?.let { putString("sound", it) }
+      event.badge?.let { putInt("badge", it) }
+      event.threadId?.let { putString("threadId", it) }
+      event.androidChannelId?.let { putString("androidChannelId", it) }
       putMap(
         "data",
         Arguments.createMap().apply {
@@ -455,6 +460,11 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       deepLink = json.optString("deepLink").takeIf { it.isNotBlank() },
       actions = actions,
       actionId = json.optString("actionId").takeIf { it.isNotBlank() },
+      imageUrl = json.optString("imageUrl").takeIf { it.isNotBlank() },
+      sound = json.optString("sound").takeIf { it.isNotBlank() },
+      badge = if (json.has("badge")) json.optInt("badge", -1).takeIf { it >= 0 } else null,
+      threadId = json.optString("threadId").takeIf { it.isNotBlank() },
+      androidChannelId = json.optString("androidChannelId").takeIf { it.isNotBlank() },
     )
   }
 
