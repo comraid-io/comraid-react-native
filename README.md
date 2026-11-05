@@ -327,10 +327,34 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 | `Capabilities` | `getCapabilities` result |
 | `DeviceProperties` | Subscription Properties for register / token refresh |
 | `ContactAttributes` | Contact Attribute map (`string \| number \| boolean \| null`) |
+| `RemoteMessage` | Receive / present Notification event (see below) |
+| `RemoteMessageAction` | Action button on a `RemoteMessage` (`id`, `text`, optional `icon`) |
 | `NotificationContent` | Local notification payload (`data` values must be strings) |
 | `ScheduleOptions` / `TimerOptions` | `schedule` / `startTimer` input |
 | `ScheduleResult` / `PendingSchedule` | Schedule outputs |
 | `SchedulePrecision` / `FallbackPolicy` / `APNsEnvironment` | Enumerated string unions |
+
+### `RemoteMessage`
+
+RNFirebase-shaped event from `onMessage`, `setBackgroundMessageHandler`, `onNotificationOpenedApp`, and `getInitialNotification`. Pass the same object (or a hand-built one) to `presentNotification`. Wrong-typed fields are dropped by the parser rather than throwing. Presentation fields are absent when not set (never empty strings), except `priority` which is always `'high' | 'normal'` on received events.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `messageId` | `string?` | Provider / SDK message id |
+| `deliveryId` | `string?` | Delivery id for ACKs; omitted on Test sends |
+| `attributionToken` | `string?` | For opened ACK / `presentNotification` auto-ACK |
+| `title` / `body` | `string?` | Tray title and body |
+| `data` | `Record<string, string>` | Sender keys only — ComRaid `cr_*` keys are stripped |
+| `deepLink` | `string?` | Deep link URL |
+| `actions` | `RemoteMessageAction[]?` | Action buttons |
+| `actionId` | `string?` | Tapped action id on open events |
+| `imageUrl` | `string?` | Push image URL; `presentNotification` shows it |
+| `subtitle` | `string?` | iOS subtitle; Android exposes it but never draws it |
+| `sound` | `string?` | Sound name (`chime`, `default`, …) |
+| `badge` | `number?` | Integer ≥ 0 |
+| `threadId` | `string?` | Thread / tag for grouping |
+| `androidChannelId` | `string?` | Category channel (carried on both platforms when sent) |
+| `priority` | `'high' \| 'normal'?` | Always set on received events; default `'high'` |
 
 ## Errors
 
@@ -358,10 +382,10 @@ This package does not add a second push stack or Message-send APIs. Rich fields 
 
 ## Images, sounds and action buttons
 
-The native SDKs apply rich fields from the push; nothing extra is needed in JS.
+Receive events carry presentation fields (`imageUrl`, `subtitle`, `sound`, `badge`, `threadId`, `androidChannelId`, `priority`). Pass a received (or hand-built) `RemoteMessage` to `presentNotification` so a promoted Data-only Notification keeps those fields.
 
-- **Android:** when the SDK draws the notification (action buttons, or the app is in the foreground) it shows `image_url` as an expanded picture, long `body` text as expandable text, `actions[].icon` from your app's `res/drawable`, `thread_id` as the notification tag, `badge` as the notification count, and `sound` from your app's `res/raw`. On Android 8+ the channel's sound plays, so set sounds on the category. See the Android SDK README.
-- **iOS:** the system applies `sound`, `badge` and `thread-id` for standard alerts. Images, and action buttons on a device that has not seen them yet, need a **Notification Service Extension** — set `ios.notificationServiceExtension: true` on the Expo plugin (below), or add one by hand in a bare app.
+- **Android:** when the SDK draws the notification (action buttons, foreground display, or `presentNotification`) it shows `imageUrl` as an expanded picture, long `body` text as expandable text, `actions[].icon` from your app's `res/drawable`, `threadId` as the notification tag, `badge` as the notification count, and posts on `androidChannelId` when set. On Android 8+ the channel decides sound and importance; `sound` only matters on Android 7 and older. `subtitle` is exposed on the event but never drawn. See the Android SDK README (ADR 0012).
+- **iOS:** the system (and `presentNotification`) apply `subtitle`, `sound`, `badge` and `threadId`. Images, and action buttons on a device that has not seen them yet, need a **Notification Service Extension** — set `ios.notificationServiceExtension: true` on the Expo plugin (below), or add one by hand in a bare app.
 
 ### Notification Service Extension in a bare React Native app
 

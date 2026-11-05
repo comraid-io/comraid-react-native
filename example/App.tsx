@@ -275,12 +275,27 @@ export default function App() {
 										messageId: 'local-sample',
 										title: 'Example presentNotification',
 										body: 'Drawn by the SDK from JS',
+										subtitle: 'Rich sample',
 										data: { source: 'example' },
+										imageUrl: 'https://comraid.io/og.png',
+										sound: 'default',
+										badge: 1,
+										threadId: 'example-thread',
+										androidChannelId: 'comraid-example',
+										priority: 'high',
 									},
 								),
 							)
 						}
 					/>
+					{lastMessage ? (
+						<Text style={styles.muted}>
+							last presentation: imageUrl={lastMessage.imageUrl ?? '—'} subtitle=
+							{lastMessage.subtitle ?? '—'} sound={lastMessage.sound ?? '—'} badge=
+							{lastMessage.badge ?? '—'} threadId={lastMessage.threadId ?? '—'} channel=
+							{lastMessage.androidChannelId ?? '—'} priority={lastMessage.priority ?? '—'}
+						</Text>
+					) : null}
 					<Row
 						label="acknowledgeDelivered (last)"
 						disabled={busy || !lastMessage?.deliveryId || !lastMessage.attributionToken}

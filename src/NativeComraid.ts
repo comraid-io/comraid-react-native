@@ -33,10 +33,12 @@ export type NativeRemoteMessage = {
 	actions?: ReadonlyArray<{ id: string; text: string; icon?: string }>;
 	actionId?: string;
 	imageUrl?: string;
+	subtitle?: string;
 	sound?: string;
 	badge?: number;
 	threadId?: string;
 	androidChannelId?: string;
+	priority?: 'high' | 'normal';
 };
 
 export interface Spec extends TurboModule {
