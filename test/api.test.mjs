@@ -69,6 +69,43 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /event\.deliveryId\?\.let \{ putString\("deliveryId", it\) \}/);
 });
 
+test('Android bridge maps presentation fields both ways', () => {
+	const moduleKt = fs.readFileSync(
+		path.join(root, 'android/src/main/java/com/comraid/reactnative/ComraidModule.kt'),
+		'utf8',
+	);
+	assert.match(moduleKt, /event\.imageUrl\?\.let \{ putString\("imageUrl", it\) \}/);
+	assert.match(moduleKt, /event\.subtitle\?\.let \{ putString\("subtitle", it\) \}/);
+	assert.match(moduleKt, /event\.sound\?\.let \{ putString\("sound", it\) \}/);
+	assert.match(moduleKt, /event\.badge\?\.let \{ putInt\("badge", it\) \}/);
+	assert.match(moduleKt, /event\.threadId\?\.let \{ putString\("threadId", it\) \}/);
+	assert.match(moduleKt, /event\.androidChannelId\?\.let \{ putString\("androidChannelId", it\) \}/);
+	assert.match(moduleKt, /putString\("priority", event\.priority\)/);
+	assert.match(moduleKt, /imageUrl = json\.optString\("imageUrl"\)\.takeIf \{ it\.isNotBlank\(\) \}/);
+	assert.match(moduleKt, /subtitle = json\.optString\("subtitle"\)\.takeIf \{ it\.isNotBlank\(\) \}/);
+	assert.match(moduleKt, /sound = json\.optString\("sound"\)\.takeIf \{ it\.isNotBlank\(\) \}/);
+	assert.match(moduleKt, /badge = if \(json\.has\("badge"\)\)/);
+	assert.match(moduleKt, /threadId = json\.optString\("threadId"\)\.takeIf \{ it\.isNotBlank\(\) \}/);
+	assert.match(
+		moduleKt,
+		/androidChannelId = json\.optString\("androidChannelId"\)\.takeIf \{ it\.isNotBlank\(\) \}/,
+	);
+	assert.match(
+		moduleKt,
+		/priority = json\.optString\("priority"\)\.takeIf \{ it == "high" \|\| it == "normal" \} \?: "high"/,
+	);
+});
+
+test('iOS bridge relies on ComraidBridge for present and initial notification', () => {
+	const moduleMm = fs.readFileSync(path.join(root, 'ios/RNComraid.mm'), 'utf8');
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] presentNotificationWithMessageJson:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] getInitialNotificationWithCompletion:/);
+	// Presentation keys are owned by ComraidBridge (ticket 03); ObjC does not re-map them.
+	assert.doesNotMatch(moduleMm, /"subtitle"/);
+	assert.doesNotMatch(moduleMm, /"priority"/);
+	assert.doesNotMatch(moduleMm, /"imageUrl"/);
+});
+
 test('iOS bridge forwards attribute, properties, and ACK APIs to ComraidBridge', () => {
 	const moduleMm = fs.readFileSync(path.join(root, 'ios/RNComraid.mm'), 'utf8');
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] setDevicePropertiesWithAppVersion:/);

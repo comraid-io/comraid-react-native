@@ -103,13 +103,17 @@ export interface RemoteMessage {
 	actionId?: string;
 	/** Push image (`content.push.image_url`); `presentNotification` shows it. */
 	imageUrl?: string;
+	/** iOS subtitle (`content.push.subtitle`); Android exposes it but never draws it. */
+	subtitle?: string;
 	/** Sound name (`chime` on Android `res/raw`, `chime.caf` bundled on iOS). */
 	sound?: string;
 	badge?: number;
 	/** Thread / tag (`content.push.thread_id`). */
 	threadId?: string;
-	/** Android only: notification channel for the push's category. */
+	/** Android notification channel for the push's category (carried on both platforms when sent). */
 	androidChannelId?: string;
+	/** Always `'high' | 'normal'` on received events (default `'high'`). */
+	priority?: 'high' | 'normal';
 }
 
 export type Unsubscribe = () => void;
@@ -124,6 +128,11 @@ export const EVENT_MESSAGE = 'comraid_message';
 export const EVENT_BACKGROUND_MESSAGE = 'comraid_background_message';
 export const EVENT_NOTIFICATION_OPENED = 'comraid_notification_opened';
 export const EVENT_TOKEN_REFRESH = 'comraid_token_refresh';
+
+/** Presentation string fields: keep non-empty strings only (absent when unset). */
+function optionalPresentationString(value: unknown): string | undefined {
+	return typeof value === 'string' && value !== '' ? value : undefined;
+}
 
 function parseRemoteMessage(raw: unknown): RemoteMessage {
 	const value = (raw ?? {}) as Record<string, unknown>;
@@ -158,15 +167,16 @@ function parseRemoteMessage(raw: unknown): RemoteMessage {
 		deepLink: typeof value.deepLink === 'string' ? value.deepLink : undefined,
 		actions,
 		actionId: typeof value.actionId === 'string' ? value.actionId : undefined,
-		imageUrl: typeof value.imageUrl === 'string' ? value.imageUrl : undefined,
-		sound: typeof value.sound === 'string' ? value.sound : undefined,
+		imageUrl: optionalPresentationString(value.imageUrl),
+		subtitle: optionalPresentationString(value.subtitle),
+		sound: optionalPresentationString(value.sound),
 		badge:
 			typeof value.badge === 'number' && Number.isInteger(value.badge) && value.badge >= 0
 				? value.badge
 				: undefined,
-		threadId: typeof value.threadId === 'string' ? value.threadId : undefined,
-		androidChannelId:
-			typeof value.androidChannelId === 'string' ? value.androidChannelId : undefined,
+		threadId: optionalPresentationString(value.threadId),
+		androidChannelId: optionalPresentationString(value.androidChannelId),
+		priority: value.priority === 'high' || value.priority === 'normal' ? value.priority : undefined,
 	};
 }
 

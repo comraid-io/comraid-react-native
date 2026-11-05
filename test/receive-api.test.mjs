@@ -139,7 +139,27 @@ test('onMessage delivers RNFirebase-shaped payload; sender data keys unchanged',
 	assert.equal(received.actions?.[0]?.id, 'accept');
 });
 
-test('onMessage keeps presentation fields and drops invalid badges', async () => {
+const RICH_PRESENTATION = {
+	imageUrl: 'https://cdn.example.com/a.png',
+	subtitle: 'Order update',
+	sound: 'chime',
+	badge: 3,
+	threadId: 'order-42',
+	androidChannelId: 'orders',
+	priority: 'high',
+};
+
+function assertPresentationFields(message) {
+	assert.equal(message.imageUrl, RICH_PRESENTATION.imageUrl);
+	assert.equal(message.subtitle, RICH_PRESENTATION.subtitle);
+	assert.equal(message.sound, RICH_PRESENTATION.sound);
+	assert.equal(message.badge, RICH_PRESENTATION.badge);
+	assert.equal(message.threadId, RICH_PRESENTATION.threadId);
+	assert.equal(message.androidChannelId, RICH_PRESENTATION.androidChannelId);
+	assert.equal(message.priority, RICH_PRESENTATION.priority);
+}
+
+test('onMessage keeps presentation fields and drops wrong-typed ones', async () => {
 	const { createComRaid, EVENT_MESSAGE } = await loadCreateComRaid();
 	const { native } = mockNative();
 	const { bus, emit } = mockEvents();
@@ -149,19 +169,105 @@ test('onMessage keeps presentation fields and drops invalid badges', async () =>
 	emit(EVENT_MESSAGE, {
 		title: 'Hello',
 		data: {},
-		imageUrl: 'https://cdn.example.com/a.png',
-		sound: 'chime',
-		badge: 3,
-		threadId: 'order-42',
-		androidChannelId: 'orders',
+		...RICH_PRESENTATION,
 	});
-	emit(EVENT_MESSAGE, { title: 'Hello', data: {}, badge: -1 });
-	assert.equal(received[0].imageUrl, 'https://cdn.example.com/a.png');
-	assert.equal(received[0].sound, 'chime');
-	assert.equal(received[0].badge, 3);
-	assert.equal(received[0].threadId, 'order-42');
-	assert.equal(received[0].androidChannelId, 'orders');
+	emit(EVENT_MESSAGE, {
+		title: 'Hello',
+		data: {},
+		badge: -1,
+		subtitle: 12,
+		priority: 'urgent',
+		imageUrl: null,
+		sound: true,
+		threadId: {},
+		androidChannelId: 7,
+	});
+	assertPresentationFields(received[0]);
 	assert.equal(received[1].badge, undefined);
+	assert.equal(received[1].subtitle, undefined);
+	assert.equal(received[1].priority, undefined);
+	assert.equal(received[1].imageUrl, undefined);
+	assert.equal(received[1].sound, undefined);
+	assert.equal(received[1].threadId, undefined);
+	assert.equal(received[1].androidChannelId, undefined);
+});
+
+test('onMessage drops empty-string presentation fields', async () => {
+	const { createComRaid, EVENT_MESSAGE } = await loadCreateComRaid();
+	const { native } = mockNative();
+	const { bus, emit } = mockEvents();
+	const api = createComRaid(native, bus);
+	const received = [];
+	api.onMessage(message => received.push(message));
+	emit(EVENT_MESSAGE, {
+		title: 'Hello',
+		data: {},
+		imageUrl: '',
+		subtitle: '',
+		sound: '',
+		threadId: '',
+		androidChannelId: '',
+		priority: 'normal',
+		badge: 0,
+	});
+	assert.equal(received[0].imageUrl, undefined);
+	assert.equal(received[0].subtitle, undefined);
+	assert.equal(received[0].sound, undefined);
+	assert.equal(received[0].threadId, undefined);
+	assert.equal(received[0].androidChannelId, undefined);
+	assert.equal(received[0].priority, 'normal');
+	assert.equal(received[0].badge, 0);
+});
+
+test('background, opened, and initial receive paths keep presentation fields', async () => {
+	const {
+		createComRaid,
+		EVENT_BACKGROUND_MESSAGE,
+		EVENT_NOTIFICATION_OPENED,
+	} = await loadCreateComRaid();
+	const { native } = mockNative({
+		getInitialNotification: async () => ({
+			title: 'Cold start',
+			data: {},
+			...RICH_PRESENTATION,
+			priority: 'normal',
+		}),
+	});
+	const { bus, emit } = mockEvents();
+	const api = createComRaid(native, bus);
+
+	const background = [];
+	api.setBackgroundMessageHandler(message => {
+		background.push(message);
+	});
+	emit(EVENT_BACKGROUND_MESSAGE, {
+		title: 'Background',
+		data: {},
+		...RICH_PRESENTATION,
+	});
+	await new Promise(resolve => setImmediate(resolve));
+	assertPresentationFields(background[0]);
+
+	const opened = [];
+	api.onNotificationOpenedApp(message => opened.push(message));
+	emit(EVENT_NOTIFICATION_OPENED, {
+		title: 'Opened',
+		data: {},
+		...RICH_PRESENTATION,
+		actionId: 'accept',
+	});
+	assertPresentationFields(opened[0]);
+	assert.equal(opened[0].actionId, 'accept');
+
+	const initial = await api.getInitialNotification();
+	assert.ok(initial);
+	assert.equal(initial.imageUrl, RICH_PRESENTATION.imageUrl);
+	assert.equal(initial.subtitle, RICH_PRESENTATION.subtitle);
+	assert.equal(initial.sound, RICH_PRESENTATION.sound);
+	assert.equal(initial.badge, RICH_PRESENTATION.badge);
+	assert.equal(initial.threadId, RICH_PRESENTATION.threadId);
+	assert.equal(initial.androidChannelId, RICH_PRESENTATION.androidChannelId);
+	assert.equal(initial.priority, 'normal');
 });
 
 test('getToken returns Provider token from TurboModule', async () => {
@@ -201,7 +307,7 @@ test('initialize passes foreground display opt-out to native configure', async (
 	assert.equal(args[8], '');
 });
 
-test('presentNotification invokes native with message JSON', async () => {
+test('presentNotification serializes every presentation field', async () => {
 	const { createComRaid } = await loadCreateComRaid();
 	const { native, calls } = mockNative();
 	const { bus } = mockEvents();
@@ -216,6 +322,8 @@ test('presentNotification invokes native with message JSON', async () => {
 			{ id: 'accept', text: 'Accept' },
 			{ id: 'reject', text: 'Reject' },
 		],
+		...RICH_PRESENTATION,
+		priority: 'normal',
 	});
 	assert.equal(calls.presentNotification.length, 1);
 	const parsed = JSON.parse(calls.presentNotification[0]);
@@ -223,6 +331,13 @@ test('presentNotification invokes native with message JSON', async () => {
 	assert.equal(parsed.deliveryId, 'd1');
 	assert.equal(parsed.data.matchId, '42');
 	assert.equal(parsed.actions.length, 2);
+	assert.equal(parsed.imageUrl, RICH_PRESENTATION.imageUrl);
+	assert.equal(parsed.subtitle, RICH_PRESENTATION.subtitle);
+	assert.equal(parsed.sound, RICH_PRESENTATION.sound);
+	assert.equal(parsed.badge, RICH_PRESENTATION.badge);
+	assert.equal(parsed.threadId, RICH_PRESENTATION.threadId);
+	assert.equal(parsed.androidChannelId, RICH_PRESENTATION.androidChannelId);
+	assert.equal(parsed.priority, 'normal');
 });
 
 test('background receive handler runs without auto acknowledgeOpened', async () => {
