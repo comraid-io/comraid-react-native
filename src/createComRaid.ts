@@ -103,13 +103,17 @@ export interface RemoteMessage {
 	actionId?: string;
 	/** Push image (`content.push.image_url`); `presentNotification` shows it. */
 	imageUrl?: string;
+	/** iOS subtitle (`content.push.subtitle`); Android exposes it but never draws it. */
+	subtitle?: string;
 	/** Sound name (`chime` on Android `res/raw`, `chime.caf` bundled on iOS). */
 	sound?: string;
 	badge?: number;
 	/** Thread / tag (`content.push.thread_id`). */
 	threadId?: string;
-	/** Android only: notification channel for the push's category. */
+	/** Android notification channel for the push's category (carried on both platforms when sent). */
 	androidChannelId?: string;
+	/** Always `'high' | 'normal'` on received events (default `'high'`). */
+	priority?: 'high' | 'normal';
 }
 
 export type Unsubscribe = () => void;
@@ -159,6 +163,7 @@ function parseRemoteMessage(raw: unknown): RemoteMessage {
 		actions,
 		actionId: typeof value.actionId === 'string' ? value.actionId : undefined,
 		imageUrl: typeof value.imageUrl === 'string' ? value.imageUrl : undefined,
+		subtitle: typeof value.subtitle === 'string' ? value.subtitle : undefined,
 		sound: typeof value.sound === 'string' ? value.sound : undefined,
 		badge:
 			typeof value.badge === 'number' && Number.isInteger(value.badge) && value.badge >= 0
@@ -167,6 +172,7 @@ function parseRemoteMessage(raw: unknown): RemoteMessage {
 		threadId: typeof value.threadId === 'string' ? value.threadId : undefined,
 		androidChannelId:
 			typeof value.androidChannelId === 'string' ? value.androidChannelId : undefined,
+		priority: value.priority === 'high' || value.priority === 'normal' ? value.priority : undefined,
 	};
 }
 
