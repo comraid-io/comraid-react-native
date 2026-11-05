@@ -192,6 +192,33 @@ test('onMessage keeps presentation fields and drops wrong-typed ones', async () 
 	assert.equal(received[1].androidChannelId, undefined);
 });
 
+test('onMessage drops empty-string presentation fields', async () => {
+	const { createComRaid, EVENT_MESSAGE } = await loadCreateComRaid();
+	const { native } = mockNative();
+	const { bus, emit } = mockEvents();
+	const api = createComRaid(native, bus);
+	const received = [];
+	api.onMessage(message => received.push(message));
+	emit(EVENT_MESSAGE, {
+		title: 'Hello',
+		data: {},
+		imageUrl: '',
+		subtitle: '',
+		sound: '',
+		threadId: '',
+		androidChannelId: '',
+		priority: 'normal',
+		badge: 0,
+	});
+	assert.equal(received[0].imageUrl, undefined);
+	assert.equal(received[0].subtitle, undefined);
+	assert.equal(received[0].sound, undefined);
+	assert.equal(received[0].threadId, undefined);
+	assert.equal(received[0].androidChannelId, undefined);
+	assert.equal(received[0].priority, 'normal');
+	assert.equal(received[0].badge, 0);
+});
+
 test('background, opened, and initial receive paths keep presentation fields', async () => {
 	const {
 		createComRaid,
