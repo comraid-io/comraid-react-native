@@ -169,16 +169,47 @@ test('Notification Service Extension Podfile target links ComRaid once', async (
 });
 
 test('Notification Service Extension source enriches through RemoteNotificationDisplay', async () => {
-	const { NSE_SWIFT_SOURCE, notificationServicePlist } = await import(
+	const { notificationServiceSwiftSource, notificationServicePlist } = await import(
 		'../plugin/build/notification-service-extension.js'
 	);
-	assert.match(NSE_SWIFT_SOURCE, /import ComRaid/);
-	assert.match(NSE_SWIFT_SOURCE, /RemoteNotificationDisplay\.enrich\(request\)/);
-	assert.match(NSE_SWIFT_SOURCE, /serviceExtensionTimeWillExpire/);
+	const source = notificationServiceSwiftSource();
+	assert.match(source, /import ComRaid/);
+	assert.match(source, /RemoteNotificationDisplay\.enrich\(request\)/);
+	assert.match(source, /serviceExtensionTimeWillExpire/);
 	const plist = notificationServicePlist({ version: '2.1.0', buildNumber: '42' });
 	assert.match(plist, /com\.apple\.usernotifications\.service/);
 	assert.match(plist, /<string>2\.1\.0<\/string>/);
 	assert.match(plist, /<string>42<\/string>/);
+});
+
+test('Notification Service Extension template passes storageSuiteName for delivered ACK', async () => {
+	const {
+		notificationServiceSwiftSource,
+		notificationServiceEntitlements,
+		ensureAppGroupEntitlement,
+		addEasAppExtension,
+		NSE_TARGET_NAME,
+	} = await import('../plugin/build/notification-service-extension.js');
+	const suite = 'group.com.example.app.comraid';
+	const source = notificationServiceSwiftSource({ storageSuiteName: suite });
+	assert.match(
+		source,
+		/RemoteNotificationDisplay\.enrich\(request, storageSuiteName: "group\.com\.example\.app\.comraid"\)/,
+	);
+	assert.match(source, /delivered ACK/);
+	const entitlements = notificationServiceEntitlements(suite);
+	assert.match(entitlements, /com\.apple\.security\.application-groups/);
+	assert.match(entitlements, new RegExp(`<string>${suite}</string>`));
+	const host = ensureAppGroupEntitlement({}, suite);
+	assert.deepEqual(host['com.apple.security.application-groups'], [suite]);
+	const config = addEasAppExtension({}, 'com.example.app', { storageSuiteName: suite });
+	assert.deepEqual(config.extra.eas.build.experimental.ios.appExtensions, [
+		{
+			targetName: NSE_TARGET_NAME,
+			bundleIdentifier: `com.example.app.${NSE_TARGET_NAME}`,
+			entitlements: { 'com.apple.security.application-groups': [suite] },
+		},
+	]);
 });
 
 test('Notification Service Extension registers once with EAS Build', async () => {

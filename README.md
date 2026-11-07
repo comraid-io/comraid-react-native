@@ -474,7 +474,7 @@ Zero-hand-edit happy path: add the plugin, point at `google-services.json`, set 
             "defaultNotificationColor": "#FF5722"
           },
           "ios": {
-            "storageSuiteName": "com.example.app.comraid",
+            "storageSuiteName": "group.com.example.app.comraid",
             "apnsEnvironment": "sandbox",
             "notificationServiceExtension": true
           }
@@ -494,8 +494,9 @@ You may also pass `android.googleServicesFile` as a plugin option (same path). T
 - Registers `com.comraid.android.internal.ComraidMessagingService` for FCM (disable with `android.includeMessagingService: false` if the host subclasses it)
 - Adds iOS `UIBackgroundModes` `remote-notification`
 - Sets `aps-environment` when `ios.apnsEnvironment` is `sandbox` or `production`
+- With `ios.storageSuiteName`, adds the App Group entitlement on the main app (pass the same id to `initialize`)
 - Wires AppDelegate for APNs token + `UNUserNotificationCenter` delegate via `RNComraidPushDelegate` (disable with `ios.wireAppDelegate: false` for bare apps that install the delegate themselves)
-- With `ios.notificationServiceExtension: true`, adds a `ComRaidNotificationService` Notification Service Extension (bundle id `<app bundle id>.ComRaidNotificationService`) that shows push images and action buttons, links it to the `ComRaid` pod, and registers it with EAS Build (`extra.eas.build.experimental.ios.appExtensions`). It signs with `ios.appleTeamId` (plugin option or Expo `ios.appleTeamId`), else the app target's team. If your Podfile pins `ComRaid` to a `:path` or `:git` source, give the `ComRaidNotificationService` target the same source.
+- With `ios.notificationServiceExtension: true`, adds a `ComRaidNotificationService` Notification Service Extension (bundle id `<app bundle id>.ComRaidNotificationService`) that shows push images/action buttons and sends the delivered ACK via `RemoteNotificationDisplay.enrich` (bakes in `storageSuiteName` + App Group entitlement), links it to the `ComRaid` pod, and registers it with EAS Build (`extra.eas.build.experimental.ios.appExtensions`). It signs with `ios.appleTeamId` (plugin option or Expo `ios.appleTeamId`), else the app target's team. If your Podfile pins `ComRaid` to a `:path` or `:git` source, give the `ComRaidNotificationService` target the same source.
 
 App ID is passed at runtime via `initialize`, not only in the plugin. Create the Firebase project / APNs key in the provider consoles; the plugin only applies the native wiring.
 
