@@ -22,6 +22,15 @@ export type NativePendingSchedule = {
 	triggerAtMillis: number;
 };
 
+export type NativeTimer = {
+	id: string;
+	title: string;
+	body: string;
+	state: string;
+	triggerAtMillis: number;
+	remainingDurationMs: number;
+};
+
 export type NativeRemoteMessage = {
 	messageId?: string;
 	deliveryId?: string;
@@ -101,6 +110,10 @@ export interface Spec extends TurboModule {
 		fallbackPolicy: string,
 		dataJson: string,
 	): Promise<NativeScheduleResult>;
+	pauseTimer(id: string): Promise<NativeTimer>;
+	resumeTimer(id: string): Promise<NativeTimer>;
+	cancelTimer(id: string): Promise<void>;
+	timers(): Promise<ReadonlyArray<NativeTimer>>;
 	cancel(id: string): Promise<void>;
 	pendingSchedules(): Promise<ReadonlyArray<NativePendingSchedule>>;
 }

@@ -16,6 +16,10 @@ test('TurboModule Spec declares attributes, properties, and ACK methods', () => 
 		'acknowledgeDelivered',
 		'acknowledgeOpened',
 		'flushAcks',
+		'pauseTimer',
+		'resumeTimer',
+		'cancelTimer',
+		'timers',
 	]) {
 		assert.match(spec, new RegExp(`${method}\\(`));
 	}
@@ -29,11 +33,16 @@ test('public ComRaid API wraps attributes, properties, and ACKs', () => {
 		'acknowledgeDelivered',
 		'acknowledgeOpened',
 		'flushAcks',
+		'pauseTimer',
+		'resumeTimer',
+		'cancelTimer',
+		'timers',
 	]) {
 		assert.match(source, new RegExp(`async ${method}\\(`));
 	}
 	const index = fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8');
 	assert.match(index, /export const ComRaid =/);
+	assert.match(index, /TimerState/);
 	const instance = fs.readFileSync(path.join(root, 'src/instance.ts'), 'utf8');
 	assert.match(instance, /createComRaid\(/);
 });
@@ -52,6 +61,10 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /ComRaid\.getInitialNotification/);
 	assert.match(moduleKt, /ComRaid\.presentNotification/);
 	assert.match(moduleKt, /ComRaid\.setBackgroundHandlerRegistered/);
+	assert.match(moduleKt, /ComRaid\.pauseTimer/);
+	assert.match(moduleKt, /ComRaid\.resumeTimer/);
+	assert.match(moduleKt, /ComRaid\.cancelTimer/);
+	assert.match(moduleKt, /ComRaid\.timers\(\)/);
 	assert.match(moduleKt, /displayForegroundNotifications/);
 	assert.match(moduleKt, /accentColor = color/);
 	assert.match(moduleKt, /com\.comraid\.DEFAULT_NOTIFICATION_COLOR/);
@@ -128,6 +141,10 @@ test('iOS bridge forwards attribute, properties, and ACK APIs to ComraidBridge',
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] getInitialNotificationWithCompletion:/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] presentNotificationWithMessageJson:/);
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] setBackgroundHandlerRegistered:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] pauseTimerWithId:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] resumeTimerWithId:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] cancelTimerWithId:/);
+	assert.match(moduleMm, /\[\[ComraidBridge shared\] timersWithCompletion:/);
 	assert.match(moduleMm, /displayForegroundNotifications:/);
 	assert.match(moduleMm, /setEventEmitter:/);
 	assert.doesNotMatch(
@@ -178,11 +195,19 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 		),
 		path.join(
 			root,
+			'../../comraid-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
+		),
+		path.join(
+			root,
 			'../../../comraid-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
 		),
 		path.join(
 			root,
 			'../android-03/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
+		),
+		path.join(
+			root,
+			'../sdks-08-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
 		),
 	];
 	const androidTest = candidates.find(candidate => fs.existsSync(candidate));
@@ -202,11 +227,19 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 		),
 		path.join(
 			root,
+			'../../comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
+		),
+		path.join(
+			root,
 			'../../../comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
 		),
 		path.join(
 			root,
 			'../android-03/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
+		),
+		path.join(
+			root,
+			'../sdks-08-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
 		),
 	];
 	const mobileClient = clientCandidates.find(candidate => fs.existsSync(candidate));
@@ -236,4 +269,7 @@ test('TurboModule Spec passes React Native codegen', () => {
 	const cppKeywords = ['register', 'delete', 'new', 'default', 'class', 'template', 'namespace', 'operator'];
 	assert.deepEqual(methods.filter(name => cppKeywords.includes(name)), []);
 	assert.ok(methods.includes('configure'));
+	for (const method of ['pauseTimer', 'resumeTimer', 'cancelTimer', 'timers']) {
+		assert.ok(methods.includes(method), `codegen schema missing ${method}`);
+	}
 });
