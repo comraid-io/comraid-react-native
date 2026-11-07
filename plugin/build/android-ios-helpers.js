@@ -314,6 +314,38 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
   return next;
 }
 
+const MAVEN_LOCAL_TAG = 'comraid-maven-local';
+
+/**
+ * Ensures `mavenLocal()` is in `allprojects.repositories` (idempotent).
+ * Prefer the dependency repos block over `buildscript.repositories`.
+ * @param {string} projectBuildGradle
+ */
+function ensureMavenLocalRepository(projectBuildGradle) {
+  const allprojectsRepos =
+    /allprojects\s*\{[\s\S]*?repositories\s*\{[\s\S]*?mavenLocal\s*\(/;
+  if (allprojectsRepos.test(projectBuildGradle)) {
+    return projectBuildGradle;
+  }
+  const allprojectsReposBlock = /allprojects\s*\{[\s\S]*?repositories\s*\{/;
+  if (allprojectsReposBlock.test(projectBuildGradle)) {
+    return projectBuildGradle.replace(
+      allprojectsReposBlock,
+      match => `${match}\n        mavenLocal()`,
+    );
+  }
+  return `${projectBuildGradle.trimEnd()}
+
+// @generated begin ${MAVEN_LOCAL_TAG}
+allprojects {
+  repositories {
+    mavenLocal()
+  }
+}
+// @generated end ${MAVEN_LOCAL_TAG}
+`;
+}
+
 module.exports = {
   MESSAGING_SERVICE,
   POST_NOTIFICATIONS,
@@ -324,5 +356,6 @@ module.exports = {
   ensureBackgroundModes,
   ensureFirebaseMessagingDependency,
   ensureNotificationColorMeta,
+  ensureMavenLocalRepository,
   modifyAppDelegate,
 };

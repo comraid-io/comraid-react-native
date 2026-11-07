@@ -52,6 +52,16 @@ export interface TimerOptions {
 	fallbackPolicy?: FallbackPolicy;
 }
 
+export type TimerState = 'running' | 'paused' | 'cancelled' | 'completed';
+
+export interface Timer {
+	id: string;
+	notification: Pick<NotificationContent, 'id' | 'title' | 'body'>;
+	state: TimerState;
+	triggerAt?: Date;
+	remainingDurationMs: number;
+}
+
 export interface Capabilities {
 	platform: 'ios' | 'android';
 	notificationsEnabled: boolean;
@@ -441,6 +451,25 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 			);
 		},
 
+		async pauseTimer(id: string): Promise<Timer> {
+			if (!id.trim()) throw new TypeError('id must not be empty');
+			return timerResult(await native().pauseTimer(id));
+		},
+
+		async resumeTimer(id: string): Promise<Timer> {
+			if (!id.trim()) throw new TypeError('id must not be empty');
+			return timerResult(await native().resumeTimer(id));
+		},
+
+		async cancelTimer(id: string): Promise<void> {
+			if (!id.trim()) throw new TypeError('id must not be empty');
+			await native().cancelTimer(id);
+		},
+
+		async timers(): Promise<Timer[]> {
+			return (await native().timers()).map(timerResult);
+		},
+
 		async cancel(id: string): Promise<void> {
 			if (!id.trim()) throw new TypeError('id must not be empty');
 			await native().cancel(id);
@@ -452,6 +481,31 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 				triggerAt: new Date(value.triggerAtMillis),
 			}));
 		},
+	};
+}
+
+function timerResult(value: {
+	id: string;
+	title: string;
+	body: string;
+	state: string;
+	triggerAtMillis: number;
+	remainingDurationMs: number;
+}): Timer {
+	const state = value.state.toLowerCase();
+	const normalized: TimerState =
+		state === 'running' || state === 'paused' || state === 'cancelled' || state === 'completed'
+			? state
+			: 'cancelled';
+	return {
+		id: value.id,
+		notification: { id: value.id, title: value.title, body: value.body },
+		state: normalized,
+		triggerAt:
+			Number.isFinite(value.triggerAtMillis) && value.triggerAtMillis > 0
+				? new Date(value.triggerAtMillis)
+				: undefined,
+		remainingDurationMs: value.remainingDurationMs,
 	};
 }
 

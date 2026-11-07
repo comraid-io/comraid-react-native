@@ -78,6 +78,29 @@ test('deny → no register and no login', async () => {
 	assert.equal(result.status, 'denied');
 });
 
+test('subscribe flow succeeds when register waits for a delayed token', async () => {
+	const runSubscribeFlow = await loadRunSubscribeFlow();
+	const { deps, calls } = createMocks({
+		register: async () => {
+			// Mirrors iOS: permission returns before APNs; register awaits the token.
+			await new Promise(resolve => setTimeout(resolve, 25));
+			calls.push('register');
+		},
+	});
+
+	const result = await runSubscribeFlow(deps, {
+		externalUserId: 'user_123',
+		jwt: 'jwt-token',
+	});
+
+	assert.deepEqual(calls, [
+		'requestNotificationPermission',
+		'register',
+		['login', 'user_123', 'jwt-token'],
+	]);
+	assert.equal(result.status, 'registered');
+});
+
 test('register failure surfaces and skips login', async () => {
 	const runSubscribeFlow = await loadRunSubscribeFlow();
 	const { deps, calls } = createMocks({

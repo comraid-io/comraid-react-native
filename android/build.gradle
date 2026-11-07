@@ -37,6 +37,12 @@ if (file("../node_modules/react-native").exists()) {
   }
 }
 
+repositories {
+  mavenLocal()
+  google()
+  mavenCentral()
+}
+
 android {
   namespace "com.comraid.reactnative"
   compileSdkVersion getExtOrDefault("compileSdkVersion")
@@ -58,10 +64,13 @@ android {
 dependencies {
   implementation "com.facebook.react:react-android"
 
+  // Prefer a settings.gradle `include ':comraid'` (or Expo plugin
+  // android.comraidPath → includeBuild + dependency substitution). Else Maven
+  // coords (mavenLocal() first, then Central once published).
   def localComraid = rootProject.findProject(":comraid")
   if (localComraid != null) {
     implementation localComraid
   } else {
-    implementation "com.comraid:comraid:${findProperty('comraidAndroidVersion') ?: '0.1.0-SNAPSHOT'}"
+    implementation "com.comraid:comraid:${findProperty('comraidAndroidVersion') ?: '0.1.0'}"
   }
 }

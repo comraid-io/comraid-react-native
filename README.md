@@ -34,8 +34,8 @@ await ComRaid.initialize({
 
 const caps = await ComRaid.getCapabilities();
 const granted = await ComRaid.requestNotificationPermission();
-// Android registers on grant. On iOS with the Expo config plugin, APNs token
-// forwarding is automatic after prebuild — then:
+// Permission only asks the OS. Register the Subscription once after a grant.
+// On iOS with the Expo config plugin, APNs token forwarding is automatic after prebuild.
 await ComRaid.register();
 
 await ComRaid.login('user_123');
@@ -122,11 +122,11 @@ await ComRaid.initialize({
 
 Reads platform notification / exact-alarm capability from the native SDK.
 
-**Returns:** `Promise<Capabilities>` — `platform`, `notificationsEnabled`, `authorizationStatus`, `exactAlarmsAvailable`
+**Returns:** `Promise<Capabilities>` — `platform`, `notificationsEnabled`, `authorizationStatus` (`authorized` / `denied` / Android `notDetermined` before the first prompt), `exactAlarmsAvailable`
 
 #### `requestNotificationPermission(): Promise<boolean>`
 
-Requests OS notification permission. On Android, a grant typically registers the Subscription; on iOS, still call `register()` after the APNs token is forwarded natively.
+Requests OS notification permission only — it does not register a Subscription. Call `register()` after a grant (SubscribeBanner / the subscribe flow already do this once). On iOS, ensure the APNs token is forwarded natively first (Expo config plugin does this after prebuild).
 
 **Returns:** `Promise<boolean>` — whether permission was granted
 
@@ -269,7 +269,8 @@ Schedules a local notification at a future trigger time.
 
 #### `startTimer(options: TimerOptions): Promise<ScheduleResult>`
 
-Schedules a local notification after `durationMs` from now.
+Starts a countdown timer that fires a Local notification after `durationMs`. Bridged on
+Android and iOS (pause/resume/list below).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -279,6 +280,42 @@ Schedules a local notification after `durationMs` from now.
 | `options.fallbackPolicy` | `'fail' \| 'useInexact'` | no | Default `'fail'` |
 
 **Returns:** `Promise<ScheduleResult>`
+
+#### `pauseTimer(id: string): Promise<Timer>`
+
+Pauses a running timer and stores remaining duration.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | `string` | yes | Timer / notification id |
+
+**Returns:** `Promise<Timer>` (`state: 'paused'`)
+
+#### `resumeTimer(id: string): Promise<Timer>`
+
+Resumes a paused timer from remaining duration.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | `string` | yes | Timer / notification id |
+
+**Returns:** `Promise<Timer>` (`state: 'running'`)
+
+#### `cancelTimer(id: string): Promise<void>`
+
+Cancels a timer and removes its pending schedule.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | `string` | yes | Timer / notification id |
+
+**Returns:** `Promise<void>`
+
+#### `timers(): Promise<Timer[]>`
+
+Lists persisted timers (`running` / `paused` / `cancelled` / `completed`).
+
+**Returns:** `Promise<Timer[]>`
 
 #### `cancel(id: string): Promise<void>`
 
@@ -317,10 +354,13 @@ const timer = await ComRaid.startTimer({
   },
   durationMs: 25 * 60 * 1000,
 });
+await ComRaid.pauseTimer(timer.id);
+await ComRaid.resumeTimer(timer.id);
+const allTimers = await ComRaid.timers();
+await ComRaid.cancelTimer(timer.id);
 
 const pending = await ComRaid.pendingSchedules();
 await ComRaid.cancel(scheduled.id);
-await ComRaid.cancel(timer.id);
 ```
 
 Exact alarms are platform opt-in (host permissions / policy). Defaults are inexact.
@@ -340,6 +380,7 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 | `NotificationContent` | Local notification payload (`data` values must be strings) |
 | `ScheduleOptions` / `TimerOptions` | `schedule` / `startTimer` input |
 | `ScheduleResult` / `PendingSchedule` | Schedule outputs |
+| `Timer` / `TimerState` | Timer pause/resume/list outputs |
 | `SchedulePrecision` / `FallbackPolicy` / `APNsEnvironment` | Enumerated string unions |
 
 ### `RemoteMessage`
@@ -381,12 +422,11 @@ Validate inputs in JS before the TurboModule call; treat native rejections as op
 | Surface | Reason |
 |---------|--------|
 | Message / Campaign send (`/messages`, `/campaigns`) | Mobile SDKs own Subscriptions and delivery, not server-side sends — use the public API or `@comraid/node` |
-| Public JS `session` method | Native SDKs call `/session` automatically; no TurboModule method |
-| iOS-only timer pause / resume / list APIs | Not bridged on the TurboModule (`schedule` / `startTimer` / `cancel` / `pendingSchedules` only) |
+| `POST .../session` (`mobileSubscriptionSession`) | **HTTP-only** until a product/SDK wrapper lands; no RN method |
 
 ## Deep links
 
-This package does not add a second push stack or Message-send APIs. Rich fields are sent via the public API / `@comraid/node` / dashboard. On open, read `cr_deep_link` from the native notification payload (FCM data / APNs `userInfo`, or Expo `notification.request.content.data`) and route in your app — see the Android and iOS SDK READMEs (“Deep links and rich fields”).
+`onNotificationOpenedApp` and `getInitialNotification` include `deepLink` (from API `content.push.deep_link` / `cr_deep_link`) on Android and iOS. The SDK does not route — navigate in the host (React Navigation / Expo Router `Linking`). On Android the native SDK opens the launch activity only; it never fires `ACTION_VIEW`.
 
 ## Images, sounds and action buttons
 
@@ -442,7 +482,7 @@ Zero-hand-edit happy path: add the plugin, point at `google-services.json`, set 
             "defaultNotificationColor": "#FF5722"
           },
           "ios": {
-            "storageSuiteName": "com.example.app.comraid",
+            "storageSuiteName": "group.com.example.app.comraid",
             "apnsEnvironment": "sandbox",
             "notificationServiceExtension": true
           }
@@ -453,6 +493,8 @@ Zero-hand-edit happy path: add the plugin, point at `google-services.json`, set 
 }
 ```
 
+Optional iOS local override while developing: `ios.comraidPath` (path to the `comraid-ios` checkout, relative to generated `ios/`). Android local tips use [`scripts/publish-android-local.sh`](./scripts/publish-android-local.sh) → mavenLocal. See [Native SDK versions](#native-sdk-versions).
+
 You may also pass `android.googleServicesFile` as a plugin option (same path). The plugin:
 
 - Applies the `com.google.gms.google-services` Gradle plugin and copies `google-services.json` when `android.googleServicesFile` is set (Expo config or plugin option)
@@ -462,20 +504,67 @@ You may also pass `android.googleServicesFile` as a plugin option (same path). T
 - Registers `com.comraid.android.internal.ComraidMessagingService` for FCM (disable with `android.includeMessagingService: false` if the host subclasses it)
 - Adds iOS `UIBackgroundModes` `remote-notification`
 - Sets `aps-environment` when `ios.apnsEnvironment` is `sandbox` or `production`
+- With `ios.storageSuiteName`, adds the App Group entitlement on the main app (pass the same id to `initialize`)
 - Wires AppDelegate for APNs token + `UNUserNotificationCenter` delegate via `RNComraidPushDelegate` (disable with `ios.wireAppDelegate: false` for bare apps that install the delegate themselves)
-- With `ios.notificationServiceExtension: true`, adds a `ComRaidNotificationService` Notification Service Extension (bundle id `<app bundle id>.ComRaidNotificationService`) that shows push images and action buttons, links it to the `ComRaid` pod, and registers it with EAS Build (`extra.eas.build.experimental.ios.appExtensions`). It signs with `ios.appleTeamId` (plugin option or Expo `ios.appleTeamId`), else the app target's team. If your Podfile pins `ComRaid` to a `:path` or `:git` source, give the `ComRaidNotificationService` target the same source.
+- With `ios.notificationServiceExtension: true`, adds a `ComRaidNotificationService` Notification Service Extension (bundle id `<app bundle id>.ComRaidNotificationService`) that shows push images/action buttons and sends the delivered ACK via `RemoteNotificationDisplay.enrich` (bakes in `storageSuiteName` + App Group entitlement), links it to the `ComRaid` pod, and registers it with EAS Build (`extra.eas.build.experimental.ios.appExtensions`). It signs with `ios.appleTeamId` (plugin option or Expo `ios.appleTeamId`), else the app target's team. If your Podfile pins `ComRaid` to a `:path` or `:git` source, give the `ComRaidNotificationService` target the same source.
 
 App ID is passed at runtime via `initialize`, not only in the plugin. Create the Firebase project / APNs key in the provider consoles; the plugin only applies the native wiring.
+
+## Native SDK versions
+
+Pinned release coords (match Android/iOS `0.1.0`):
+
+| Platform | Default |
+|----------|---------|
+| Android | `com.comraid:comraid:0.1.0` (`android/build.gradle`; override with Gradle property `comraidAndroidVersion`) |
+| iOS | `ComRaid ~> 0.1.0` (`ReactNativeComraid.podspec`) |
+
+`android/build.gradle` resolves through `mavenLocal()` then Maven Central. The Expo config plugin also injects `mavenLocal()` into the host `allprojects.repositories` block. Direct `includeBuild` of `comraid-android` is not supported against Expo’s AGP (SDK ships AGP 9; Expo apps use 8.x) — use mavenLocal instead.
+
+### Local override (development)
+
+**Android — mavenLocal from a checkout path:**
+
+```sh
+./scripts/publish-android-local.sh ../comraid-android
+# equivalent: (cd ../comraid-android && ./gradlew :comraid:publishToMavenLocal)
+```
+
+Then build the RN / Expo app as usual (no extra Gradle properties).
+
+**iOS — CocoaPods path:** until the pod is on trunk, pin a checkout in the Podfile (and keep the NSE target in sync):
+
+```ruby
+pod 'ComRaid', :path => '../comraid-ios'
+```
+
+Expo: set plugin option `ios.comraidPath` (path relative to the generated `ios/` directory). The config plugin injects the Podfile override and uses the same `:path` for `ComRaidNotificationService`.
+
+Bare React Native without the Expo plugin: add the Podfile lines yourself after autolinking.
 
 ## Example app
 
 See [`example/`](./example/) — Expo SDK 57 / RN 0.86 New Architecture playground that exercises the public methods (initialize, permission, register, login, Properties/Attributes, receive events, present/ACKs, schedule/timer). Dev client only (not Expo Go). Setup notes in [`example/README.md`](./example/README.md).
+
+## Releasing
+
+Package version is `package.json` / podspec `spec.version` (SemVer, **no `v` prefix** on the git tag — e.g. `0.1.0`).
+
+```sh
+npm run check
+npm run pack:dry-run   # npm pack --dry-run + publint
+git tag 0.1.0
+git push origin 0.1.0
+```
+
+Actual `npm publish` is owned by the launch tracker (npm org / domain readiness). Draft GitHub Actions: [`.github/workflows/release-publish.yml`](./.github/workflows/release-publish.yml) — enablement blocked on [v1-tracker #35](https://github.com/comraid-io/planning/blob/main/.scratch/v1-tracker/issues/35-ci-github-actions-sdk-repos.md).
 
 ## Local verification
 
 ```sh
 npm test
 npm run check
+npm run pack:dry-run
 ```
 
 npm publish is blocked on domain/email readiness (#27); do not publish from a dirty tree.
