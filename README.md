@@ -47,7 +47,7 @@ await ComRaid.setAttributes({ plan: 'premium' });
 await ComRaid.logout(); // Subscription becomes Inactive
 ```
 
-Logout means Inactive (Endpoint state). Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
+Logout means Inactive (Endpoint state): native SDKs clear persisted identity and register a fresh Subscription. Native SDKs persist Subscription id, credential, and External user ID across launches; iOS APNs updates via the bridge call `setAPNsDeviceToken`, which refreshes `/token` when a credential exists. Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
 
 ### SubscribeBanner (optional UI)
 
@@ -159,7 +159,7 @@ Associates the Subscription with a Contact (`external_user_id`). Optional Identi
 
 #### `logout(): Promise<void>`
 
-Clears Login. Subscription becomes **Inactive**.
+Makes the Subscription **Inactive**, clears persisted native identity, and registers a fresh Subscription on a new Anonymous contact.
 
 **Returns:** `Promise<void>`
 
@@ -170,9 +170,17 @@ await ComRaid.logout();
 
 ### Properties and Attributes
 
+#### Automatic Properties and sessions (native)
+
+Android and iOS SDKs auto-collect app/SDK version, OS, model, locale, language, timezone
+and country on `register` and eligible foregrounds, and POST `/session` with a ~30 minute
+background debounce. React Native inherits that behavior through the native modules —
+there is no JS `session` method.
+
 #### `setDeviceProperties(properties: DeviceProperties): Promise<void>`
 
-Persists Subscription device **Properties** for the next register / token refresh.
+Optional overrides for auto-collected Properties on the next native register / token /
+session call.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -185,11 +193,11 @@ Persists Subscription device **Properties** for the next register / token refres
 
 #### `setAttributes(attributes: ContactAttributes): Promise<void>`
 
-Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null`.
+Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null` (`null` removes that Attribute).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update) |
+| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update). A `null` value removes that Attribute. |
 
 **Returns:** `Promise<void>`
 
@@ -325,7 +333,7 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 |------|------|
 | `ConfigureOptions` | `initialize` / `configure` input |
 | `Capabilities` | `getCapabilities` result |
-| `DeviceProperties` | Subscription Properties for register / token refresh |
+| `DeviceProperties` | Overrides for auto-collected Properties on register / token / session |
 | `ContactAttributes` | Contact Attribute map (`string \| number \| boolean \| null`) |
 | `RemoteMessage` | Receive / present Notification event (see below) |
 | `RemoteMessageAction` | Action button on a `RemoteMessage` (`id`, `text`, optional `icon`) |
@@ -373,7 +381,7 @@ Validate inputs in JS before the TurboModule call; treat native rejections as op
 | Surface | Reason |
 |---------|--------|
 | Message / Campaign send (`/messages`, `/campaigns`) | Mobile SDKs own Subscriptions and delivery, not server-side sends — use the public API or `@comraid/node` |
-| `POST .../session` (`mobileSubscriptionSession`) | **HTTP-only** until a product/SDK wrapper lands; no RN method |
+| Public JS `session` method | Native SDKs call `/session` automatically; no TurboModule method |
 | iOS-only timer pause / resume / list APIs | Not bridged on the TurboModule (`schedule` / `startTimer` / `cancel` / `pendingSchedules` only) |
 
 ## Deep links

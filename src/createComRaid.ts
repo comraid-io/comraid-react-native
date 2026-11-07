@@ -72,7 +72,11 @@ export interface PendingSchedule {
 	triggerAt: Date;
 }
 
-/** Subscription (device) Properties sent on the next register / token refresh. */
+/**
+ * Optional overrides for Subscription / Contact Properties.
+ * Native SDKs auto-collect app/SDK version, OS, model, locale, language,
+ * timezone and country on register and session; fields set here win when non-empty.
+ */
 export interface DeviceProperties {
 	appVersion?: string;
 	model?: string;
@@ -80,6 +84,7 @@ export interface DeviceProperties {
 	extras?: Readonly<Record<string, unknown>>;
 }
 
+/** Contact Attribute map. A `null` value removes that Attribute on the server. */
 export type ContactAttributes = Readonly<Record<string, string | number | boolean | null>>;
 
 export interface RemoteMessageAction {
@@ -283,8 +288,8 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 		},
 
 		/**
-		 * Persist Subscription device Properties for the next register / token refresh.
-		 * Forwarded to native `ComRaid.setDeviceProperties` (Android / iOS).
+		 * Override auto-collected Properties for subsequent native register / token /
+		 * session calls. Forwarded to native `ComRaid.setDeviceProperties`.
 		 */
 		async setDeviceProperties(properties: DeviceProperties): Promise<void> {
 			const extras = properties.extras ?? {};
@@ -302,6 +307,7 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 		/**
 		 * Upsert Contact Attributes for the logged-in `external_user_id`.
 		 * Requires Login. Forwards to native `ComRaid.setAttributes` (Android / iOS).
+		 * A `null` value removes that Attribute.
 		 */
 		async setAttributes(attributes: ContactAttributes): Promise<void> {
 			if (attributes == null || typeof attributes !== 'object' || Array.isArray(attributes)) {
