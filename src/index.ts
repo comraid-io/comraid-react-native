@@ -12,7 +12,9 @@ import {
 	type ScheduleOptions,
 	type SchedulePrecision,
 	type ScheduleResult,
+	type Timer,
 	type TimerOptions,
+	type TimerState,
 	type Unsubscribe,
 } from './createComRaid';
 import { ComRaid as comRaidInstance } from './instance';
@@ -32,7 +34,9 @@ export type {
 	ScheduleOptions,
 	SchedulePrecision,
 	ScheduleResult,
+	Timer,
 	TimerOptions,
+	TimerState,
 	Unsubscribe,
 	SubscribeBannerProps,
 };

@@ -76,6 +76,14 @@ function mockNative(overrides = {}) {
 		startTimer: async () => {
 			throw new Error('unused');
 		},
+		pauseTimer: async () => {
+			throw new Error('unused');
+		},
+		resumeTimer: async () => {
+			throw new Error('unused');
+		},
+		cancelTimer: async () => {},
+		timers: async () => [],
 		cancel: async () => {},
 		pendingSchedules: async () => [],
 		...overrides,
