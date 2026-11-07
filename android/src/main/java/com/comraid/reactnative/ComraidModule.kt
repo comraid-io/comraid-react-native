@@ -2,6 +2,7 @@ package com.comraid.reactnative
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -29,13 +30,11 @@ import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.Executors
 
 class ComraidModule(private val reactContext: ReactApplicationContext) :
   NativeComraidSpec(reactContext), PermissionListener, ActivityEventListener {
 
   private var permissionPromise: Promise? = null
-  private val registerExecutor = Executors.newSingleThreadExecutor()
   private var listenersAttached = false
 
   private val foregroundListener = RemoteMessageListener { event ->
@@ -60,7 +59,6 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   override fun invalidate() {
     reactContext.removeActivityEventListener(this)
     detachNativeListeners()
-    registerExecutor.shutdown()
     super.invalidate()
   }
 
@@ -132,10 +130,21 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
 
   override fun getCapabilities(promise: Promise) = resolve(promise) {
     val value = ComRaid.capabilities(reactContext)
+    val postNotificationsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+      ContextCompat.checkSelfPermission(reactContext, Manifest.permission.POST_NOTIFICATIONS) ==
+      PackageManager.PERMISSION_GRANTED
     Arguments.createMap().apply {
       putString("platform", "android")
       putBoolean("notificationsEnabled", value.notificationsEnabled)
-      putString("authorizationStatus", if (value.notificationsEnabled) "authorized" else "denied")
+      putString(
+        "authorizationStatus",
+        AuthorizationStatus.from(
+          apiLevel = Build.VERSION.SDK_INT,
+          postNotificationsGranted = postNotificationsGranted,
+          notificationsEnabled = value.notificationsEnabled,
+          hasRequestedPermission = hasRequestedPermission(),
+        ),
+      )
       putBoolean("exactAlarmsAvailable", value.exactAlarmsAvailable)
     }
   }
@@ -147,10 +156,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       PackageManager.PERMISSION_GRANTED
 
     if (permissionGranted && notificationsEnabled) {
-      resolve(promise) {
-        ComRaid.register()
-        true
-      }
+      promise.resolve(true)
       return
     }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
@@ -167,6 +173,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
       return
     }
     permissionPromise = promise
+    markPermissionRequested()
     activity.requestPermissions(
       arrayOf(Manifest.permission.POST_NOTIFICATIONS),
       PERMISSION_REQUEST_CODE,
@@ -174,9 +181,18 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     )
   }
 
-  override fun registerSubscription(promise: Promise) = resolve(promise) {
-    ComRaid.register()
-    null
+  override fun registerSubscription(promise: Promise) {
+    try {
+      // Ticket 01 non-blocking API: work runs on the SDK executor; callback on main.
+      ComRaid.register { result ->
+        result.fold(
+          onSuccess = { promise.resolve(null) },
+          onFailure = { error -> promise.reject("COMRAID_ERROR", error.message, error) },
+        )
+      }
+    } catch (error: Throwable) {
+      promise.reject("COMRAID_ERROR", error.message, error)
+    }
   }
 
   override fun login(externalUserId: String, jwt: String, promise: Promise) = resolve(promise) {
@@ -284,23 +300,23 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     grantResults: IntArray,
   ): Boolean {
     if (requestCode != PERMISSION_REQUEST_CODE) return false
-    val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+    val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED &&
+      NotificationManagerCompat.from(reactContext).areNotificationsEnabled()
     val promise = permissionPromise
     permissionPromise = null
-    if (granted && NotificationManagerCompat.from(reactContext).areNotificationsEnabled()) {
-      // Permission results arrive on the UI thread; register waits on the FCM token and the network.
-      registerExecutor.execute {
-        try {
-          ComRaid.register()
-          promise?.resolve(true)
-        } catch (error: Throwable) {
-          promise?.reject("COMRAID_ERROR", error.message, error)
-        }
-      }
-    } else {
-      promise?.resolve(false)
-    }
+    // Permission-only: SubscribeBanner / runSubscribeFlow call register once after this resolves.
+    promise?.resolve(granted)
     return true
+  }
+
+  private fun prefs() =
+    reactContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+  private fun hasRequestedPermission(): Boolean =
+    prefs().getBoolean(KEY_PERMISSION_REQUESTED, false)
+
+  private fun markPermissionRequested() {
+    prefs().edit().putBoolean(KEY_PERMISSION_REQUESTED, true).apply()
   }
 
   override fun schedule(
@@ -558,6 +574,8 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     private const val META_SMALL_ICON = "com.comraid.SMALL_ICON_RESOURCE"
     private const val META_NOTIFICATION_COLOR = "com.comraid.DEFAULT_NOTIFICATION_COLOR"
     private const val PERMISSION_REQUEST_CODE = 43_117
+    private const val PREFS_NAME = "com.comraid.reactnative"
+    private const val KEY_PERMISSION_REQUESTED = "notification_permission_requested"
     private const val EVENT_MESSAGE = "comraid_message"
     private const val EVENT_BACKGROUND_MESSAGE = "comraid_background_message"
     private const val EVENT_NOTIFICATION_OPENED = "comraid_notification_opened"

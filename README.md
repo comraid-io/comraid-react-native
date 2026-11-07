@@ -34,8 +34,8 @@ await ComRaid.initialize({
 
 const caps = await ComRaid.getCapabilities();
 const granted = await ComRaid.requestNotificationPermission();
-// Android registers on grant. On iOS with the Expo config plugin, APNs token
-// forwarding is automatic after prebuild — then:
+// Permission only asks the OS. Register the Subscription once after a grant.
+// On iOS with the Expo config plugin, APNs token forwarding is automatic after prebuild.
 await ComRaid.register();
 
 await ComRaid.login('user_123');
@@ -122,11 +122,11 @@ await ComRaid.initialize({
 
 Reads platform notification / exact-alarm capability from the native SDK.
 
-**Returns:** `Promise<Capabilities>` — `platform`, `notificationsEnabled`, `authorizationStatus`, `exactAlarmsAvailable`
+**Returns:** `Promise<Capabilities>` — `platform`, `notificationsEnabled`, `authorizationStatus` (`authorized` / `denied` / Android `notDetermined` before the first prompt), `exactAlarmsAvailable`
 
 #### `requestNotificationPermission(): Promise<boolean>`
 
-Requests OS notification permission. On Android, a grant typically registers the Subscription; on iOS, still call `register()` after the APNs token is forwarded natively.
+Requests OS notification permission only — it does not register a Subscription. Call `register()` after a grant (SubscribeBanner / the subscribe flow already do this once). On iOS, ensure the APNs token is forwarded natively first (Expo config plugin does this after prebuild).
 
 **Returns:** `Promise<boolean>` — whether permission was granted
 
