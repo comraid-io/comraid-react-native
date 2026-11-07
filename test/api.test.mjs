@@ -55,8 +55,9 @@ test('Android bridge forwards attribute and ACK APIs to ComRaid', () => {
 	assert.match(moduleKt, /displayForegroundNotifications/);
 	assert.match(moduleKt, /accentColor = color/);
 	assert.match(moduleKt, /com\.comraid\.DEFAULT_NOTIFICATION_COLOR/);
-	// Permission results arrive on the UI thread; register must not block it.
-	assert.match(moduleKt, /registerExecutor\.execute \{\s+try \{\s+ComRaid\.register\(\)/);
+	// Permission asks only; register uses ticket-01 callback API (off the main/UI path).
+	assert.match(moduleKt, /ComRaid\.register\s*\{/);
+	assert.doesNotMatch(moduleKt, /registerExecutor/);
 	// Test sends omit delivery IDs; bridge must treat them as optional, not throw.
 	assert.match(
 		moduleKt,
@@ -181,6 +182,10 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 			root,
 			'../android-03/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
 		),
+		path.join(
+			root,
+			'../sdks-integration-comraid-android/comraid/src/test/java/com/comraid/android/ComRaidRemoteAndPropertiesTest.kt',
+		),
 	];
 	const androidTest = candidates.find(candidate => fs.existsSync(candidate));
 	assert.ok(
@@ -204,6 +209,10 @@ test('empty setAttributes HTTP path is recorded on Android SDK (sibling seam)', 
 		path.join(
 			root,
 			'../android-03/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
+		),
+		path.join(
+			root,
+			'../sdks-integration-comraid-android/comraid/src/main/java/com/comraid/android/internal/MobileApiClient.kt',
 		),
 	];
 	const mobileClient = clientCandidates.find(candidate => fs.existsSync(candidate));
