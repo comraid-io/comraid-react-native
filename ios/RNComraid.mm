@@ -344,6 +344,57 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
   }];
 }
 
+- (void)pauseTimer:(NSString *)id
+           resolve:(RCTPromiseResolveBlock)resolve
+            reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] pauseTimerWithId:id completion:^(NSDictionary *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value);
+    }
+  }];
+}
+
+- (void)resumeTimer:(NSString *)id
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] resumeTimerWithId:id completion:^(NSDictionary *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value);
+    }
+  }];
+}
+
+- (void)cancelTimer:(NSString *)id
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] cancelTimerWithId:id completion:^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  }];
+}
+
+- (void)timers:(RCTPromiseResolveBlock)resolve
+        reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] timersWithCompletion:^(NSArray *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value);
+    }
+  }];
+}
+
 - (void)cancel:(NSString *)id
        resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject

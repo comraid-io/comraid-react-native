@@ -261,7 +261,8 @@ Schedules a local notification at a future trigger time.
 
 #### `startTimer(options: TimerOptions): Promise<ScheduleResult>`
 
-Schedules a local notification after `durationMs` from now.
+Starts a countdown timer that fires a Local notification after `durationMs`. Bridged on
+Android and iOS (pause/resume/list below).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -271,6 +272,42 @@ Schedules a local notification after `durationMs` from now.
 | `options.fallbackPolicy` | `'fail' \| 'useInexact'` | no | Default `'fail'` |
 
 **Returns:** `Promise<ScheduleResult>`
+
+#### `pauseTimer(id: string): Promise<Timer>`
+
+Pauses a running timer and stores remaining duration.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | `string` | yes | Timer / notification id |
+
+**Returns:** `Promise<Timer>` (`state: 'paused'`)
+
+#### `resumeTimer(id: string): Promise<Timer>`
+
+Resumes a paused timer from remaining duration.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | `string` | yes | Timer / notification id |
+
+**Returns:** `Promise<Timer>` (`state: 'running'`)
+
+#### `cancelTimer(id: string): Promise<void>`
+
+Cancels a timer and removes its pending schedule.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | `string` | yes | Timer / notification id |
+
+**Returns:** `Promise<void>`
+
+#### `timers(): Promise<Timer[]>`
+
+Lists persisted timers (`running` / `paused` / `cancelled` / `completed`).
+
+**Returns:** `Promise<Timer[]>`
 
 #### `cancel(id: string): Promise<void>`
 
@@ -309,10 +346,13 @@ const timer = await ComRaid.startTimer({
   },
   durationMs: 25 * 60 * 1000,
 });
+await ComRaid.pauseTimer(timer.id);
+await ComRaid.resumeTimer(timer.id);
+const allTimers = await ComRaid.timers();
+await ComRaid.cancelTimer(timer.id);
 
 const pending = await ComRaid.pendingSchedules();
 await ComRaid.cancel(scheduled.id);
-await ComRaid.cancel(timer.id);
 ```
 
 Exact alarms are platform opt-in (host permissions / policy). Defaults are inexact.
@@ -332,6 +372,7 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 | `NotificationContent` | Local notification payload (`data` values must be strings) |
 | `ScheduleOptions` / `TimerOptions` | `schedule` / `startTimer` input |
 | `ScheduleResult` / `PendingSchedule` | Schedule outputs |
+| `Timer` / `TimerState` | Timer pause/resume/list outputs |
 | `SchedulePrecision` / `FallbackPolicy` / `APNsEnvironment` | Enumerated string unions |
 
 ### `RemoteMessage`
@@ -374,7 +415,6 @@ Validate inputs in JS before the TurboModule call; treat native rejections as op
 |---------|--------|
 | Message / Campaign send (`/messages`, `/campaigns`) | Mobile SDKs own Subscriptions and delivery, not server-side sends — use the public API or `@comraid/node` |
 | `POST .../session` (`mobileSubscriptionSession`) | **HTTP-only** until a product/SDK wrapper lands; no RN method |
-| iOS-only timer pause / resume / list APIs | Not bridged on the TurboModule (`schedule` / `startTimer` / `cancel` / `pendingSchedules` only) |
 
 ## Deep links
 
