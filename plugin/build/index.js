@@ -27,6 +27,7 @@ const {
   addEasAppExtension,
   addNotificationServicePodTarget,
   addNotificationServiceTarget,
+  ensureAppGroupEntitlement,
   writeNotificationServiceFiles,
 } = require('./notification-service-extension');
 
@@ -99,6 +100,13 @@ function withComRaid(config, options = {}) {
     return current;
   });
 
+  if (ios.storageSuiteName) {
+    config = withEntitlementsPlist(config, current => {
+      ensureAppGroupEntitlement(current.modResults, ios.storageSuiteName);
+      return current;
+    });
+  }
+
   if (ios.apnsEnvironment === 'sandbox' || ios.apnsEnvironment === 'production') {
     config = withEntitlementsPlist(config, current => {
       current.modResults['aps-environment'] = ios.apnsEnvironment;
@@ -123,7 +131,7 @@ function withComRaid(config, options = {}) {
   return config;
 }
 
-/** Images and cold-device action buttons on iOS need a Notification Service Extension. */
+/** Images, cold-device action buttons, and NSE delivered ACK need a Notification Service Extension. */
 function withNotificationServiceExtension(config, ios) {
   const bundleIdentifier = config.ios?.bundleIdentifier;
   if (!bundleIdentifier) {
@@ -131,11 +139,16 @@ function withNotificationServiceExtension(config, ios) {
       '@comraid/react-native: ios.notificationServiceExtension needs expo.ios.bundleIdentifier',
     );
   }
+  const storageSuiteName =
+    typeof ios.storageSuiteName === 'string' ? ios.storageSuiteName.trim() : '';
   const versions = {
     version: config.version ?? '1.0.0',
     buildNumber: config.ios?.buildNumber ?? '1',
+    storageSuiteName: storageSuiteName || undefined,
   };
-  config = addEasAppExtension(config, bundleIdentifier);
+  config = addEasAppExtension(config, bundleIdentifier, {
+    storageSuiteName: storageSuiteName || undefined,
+  });
   config = withDangerousMod(config, [
     'ios',
     current => {
