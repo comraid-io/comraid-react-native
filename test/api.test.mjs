@@ -119,6 +119,14 @@ test('iOS bridge relies on ComraidBridge for present and initial notification', 
 	assert.doesNotMatch(moduleMm, /"imageUrl"/);
 });
 
+test('iOS APNs token refresh bridge forwards to ComRaid.setAPNsDeviceToken', () => {
+	// Native SDK setAPNsDeviceToken auto-calls /token when a Subscription credential exists.
+	const caller = fs.readFileSync(path.join(root, 'ios/RNComraidComRaidCaller.swift'), 'utf8');
+	assert.match(caller, /ComRaid\.shared\.setAPNsDeviceToken/);
+	const delegate = fs.readFileSync(path.join(root, 'ios/RNComraidPushDelegate.mm'), 'utf8');
+	assert.match(delegate, /\[RNComraidComRaidCaller setAPNsDeviceToken:deviceToken\]/);
+});
+
 test('iOS bridge forwards attribute, properties, and ACK APIs to ComraidBridge', () => {
 	const moduleMm = fs.readFileSync(path.join(root, 'ios/RNComraid.mm'), 'utf8');
 	assert.match(moduleMm, /\[\[ComraidBridge shared\] setDevicePropertiesWithAppVersion:/);

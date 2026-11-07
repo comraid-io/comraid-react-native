@@ -90,6 +90,7 @@ export interface DeviceProperties {
 	extras?: Readonly<Record<string, unknown>>;
 }
 
+/** Contact Attribute map. A `null` value removes that Attribute on the server. */
 export type ContactAttributes = Readonly<Record<string, string | number | boolean | null>>;
 
 export interface RemoteMessageAction {
@@ -312,6 +313,7 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 		/**
 		 * Upsert Contact Attributes for the logged-in `external_user_id`.
 		 * Requires Login. Forwards to native `ComRaid.setAttributes` (Android / iOS).
+		 * A `null` value removes that Attribute.
 		 */
 		async setAttributes(attributes: ContactAttributes): Promise<void> {
 			if (attributes == null || typeof attributes !== 'object' || Array.isArray(attributes)) {

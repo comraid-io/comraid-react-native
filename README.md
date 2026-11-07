@@ -47,7 +47,7 @@ await ComRaid.setAttributes({ plan: 'premium' });
 await ComRaid.logout(); // Subscription becomes Inactive
 ```
 
-Logout means Inactive (Endpoint state). Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
+Logout means Inactive (Endpoint state): native SDKs clear persisted identity and register a fresh Subscription. Native SDKs persist Subscription id, credential, and External user ID across launches; iOS APNs updates via the bridge call `setAPNsDeviceToken`, which refreshes `/token` when a credential exists. Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
 
 ### SubscribeBanner (optional UI)
 
@@ -159,7 +159,7 @@ Associates the Subscription with a Contact (`external_user_id`). Optional Identi
 
 #### `logout(): Promise<void>`
 
-Clears Login. Subscription becomes **Inactive**.
+Makes the Subscription **Inactive**, clears persisted native identity, and registers a fresh Subscription on a new Anonymous contact.
 
 **Returns:** `Promise<void>`
 
@@ -185,11 +185,11 @@ Persists Subscription device **Properties** for the next register / token refres
 
 #### `setAttributes(attributes: ContactAttributes): Promise<void>`
 
-Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null`.
+Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null` (`null` removes that Attribute).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update) |
+| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update). A `null` value removes that Attribute. |
 
 **Returns:** `Promise<void>`
 
@@ -418,7 +418,7 @@ Validate inputs in JS before the TurboModule call; treat native rejections as op
 
 ## Deep links
 
-This package does not add a second push stack or Message-send APIs. Rich fields are sent via the public API / `@comraid/node` / dashboard. On open, read `cr_deep_link` from the native notification payload (FCM data / APNs `userInfo`, or Expo `notification.request.content.data`) and route in your app — see the Android and iOS SDK READMEs (“Deep links and rich fields”).
+`onNotificationOpenedApp` and `getInitialNotification` include `deepLink` (from API `content.push.deep_link` / `cr_deep_link`) on Android and iOS. The SDK does not route — navigate in the host (React Navigation / Expo Router `Linking`). On Android the native SDK opens the launch activity only; it never fires `ACTION_VIEW`.
 
 ## Images, sounds and action buttons
 
