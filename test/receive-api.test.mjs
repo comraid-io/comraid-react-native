@@ -432,6 +432,26 @@ test('onNotificationOpenedApp surfaces open events including actionId', async ()
 	assert.equal(opened[0].deliveryId, 'd1');
 });
 
+test('opened listener receives actionId from action-button open (done path)', async () => {
+	const { createComRaid, EVENT_NOTIFICATION_OPENED } = await loadCreateComRaid();
+	const { native } = mockNative();
+	const { bus, emit } = mockEvents();
+	const api = createComRaid(native, bus);
+	/** @type {string | undefined} */
+	let seenActionId;
+	api.onNotificationOpenedApp(message => {
+		seenActionId = message.actionId;
+	});
+	emit(EVENT_NOTIFICATION_OPENED, {
+		deliveryId: 'd-action',
+		attributionToken: 'tok',
+		title: 'Choose',
+		data: { path: '/rematch' },
+		actionId: 'reject',
+	});
+	assert.equal(seenActionId, 'reject');
+});
+
 test('getInitialNotification returns null when native has none', async () => {
 	const { createComRaid } = await loadCreateComRaid();
 	const { native } = mockNative();
