@@ -185,11 +185,11 @@ Persists Subscription device **Properties** for the next register / token refres
 
 #### `setAttributes(attributes: ContactAttributes): Promise<void>`
 
-Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null`.
+Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null` (`null` removes that Attribute).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update) |
+| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update). A `null` value removes that Attribute. |
 
 **Returns:** `Promise<void>`
 
