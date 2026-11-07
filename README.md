@@ -378,7 +378,7 @@ Validate inputs in JS before the TurboModule call; treat native rejections as op
 
 ## Deep links
 
-This package does not add a second push stack or Message-send APIs. Rich fields are sent via the public API / `@comraid/node` / dashboard. On open, read `cr_deep_link` from the native notification payload (FCM data / APNs `userInfo`, or Expo `notification.request.content.data`) and route in your app — see the Android and iOS SDK READMEs (“Deep links and rich fields”).
+`onNotificationOpenedApp` and `getInitialNotification` include `deepLink` (from API `content.push.deep_link` / `cr_deep_link`) on Android and iOS. The SDK does not route — navigate in the host (React Navigation / Expo Router `Linking`). On Android the native SDK opens the launch activity only; it never fires `ACTION_VIEW`.
 
 ## Images, sounds and action buttons
 
