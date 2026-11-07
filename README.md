@@ -333,7 +333,7 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 |------|------|
 | `ConfigureOptions` | `initialize` / `configure` input |
 | `Capabilities` | `getCapabilities` result |
-| `DeviceProperties` | Subscription Properties for register / token refresh |
+| `DeviceProperties` | Overrides for auto-collected Properties on register / token / session |
 | `ContactAttributes` | Contact Attribute map (`string \| number \| boolean \| null`) |
 | `RemoteMessage` | Receive / present Notification event (see below) |
 | `RemoteMessageAction` | Action button on a `RemoteMessage` (`id`, `text`, optional `icon`) |
