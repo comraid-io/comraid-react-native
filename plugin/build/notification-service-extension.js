@@ -130,20 +130,51 @@ function notificationServiceEntitlements(storageSuiteName) {
 `;
 }
 
+const COMRAID_POD_PATH_TAG = 'comraid-pod-path';
+
+/**
+ * Pins `ComRaid` to a local checkout so CocoaPods does not need trunk (idempotent).
+ * @param {string} podfile
+ * @param {string} comraidPath Path to the comraid-ios repo (relative to ios/)
+ */
+function applyComraidPodPathOverride(podfile, comraidPath) {
+  const trimmed = typeof comraidPath === 'string' ? comraidPath.trim() : '';
+  if (!trimmed) return podfile;
+  if (podfile.includes(`# @generated begin ${COMRAID_POD_PATH_TAG}`)) {
+    return podfile;
+  }
+  const escaped = trimmed.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const block = `# @generated begin ${COMRAID_POD_PATH_TAG}
+pod 'ComRaid', :path => '${escaped}'
+# @generated end ${COMRAID_POD_PATH_TAG}
+`;
+  const platform = podfile.match(/^platform[^\n]*\n+/m);
+  if (platform) {
+    return podfile.replace(platform[0], `${platform[0]}${block}\n`);
+  }
+  return `${block}\n${podfile}`;
+}
+
 /**
  * Adds a Podfile target so the extension links the ComRaid pod (idempotent).
  * @param {string} podfile
+ * @param {{ comraidPath?: string }} [options]
  */
-function addNotificationServicePodTarget(podfile) {
+function addNotificationServicePodTarget(podfile, options = {}) {
   if (podfile.includes(`target '${NSE_TARGET_NAME}'`)) {
     return podfile;
   }
-  // Top level, beside the app target; the version comes from ReactNativeComraid's dependency.
+  const trimmed =
+    typeof options.comraidPath === 'string' ? options.comraidPath.trim() : '';
+  const podLine = trimmed
+    ? `  pod 'ComRaid', :path => '${trimmed.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+    : `  pod 'ComRaid'`;
+  // Top level, beside the app target; version comes from ReactNativeComraid unless :path is set.
   return `${podfile.trimEnd()}
 
 # @generated begin ${PODFILE_TAG}
 target '${NSE_TARGET_NAME}' do
-  pod 'ComRaid'
+${podLine}
 end
 # @generated end ${PODFILE_TAG}
 `;
@@ -303,6 +334,7 @@ module.exports = {
   addEasAppExtension,
   addNotificationServicePodTarget,
   addNotificationServiceTarget,
+  applyComraidPodPathOverride,
   ensureAppGroupEntitlement,
   notificationServiceEntitlements,
   notificationServicePlist,

@@ -35,7 +35,9 @@
     "test": "node --test test/*.test.mjs",
     "check": "npm run typecheck && npm run prepare && node --check app.plugin.js && node --check plugin/build/index.js && node --check plugin/build/android-ios-helpers.js && node --check plugin/build/notification-service-extension.js && node scripts/check-naming.mjs && npm test",
     "check:naming": "node scripts/check-naming.mjs",
-    "pack:check": "npm pack --dry-run"
+    "pack:check": "npm pack --dry-run",
+    "publint": "publint",
+    "pack:dry-run": "npm run pack:check && npm run publint"
   },
   "keywords": [
     "react-native",
@@ -53,6 +55,7 @@
   "license": "MIT",
   "homepage": "https://github.com/comraid-io/comraid-react-native#readme",
   "publishConfig": {
+    "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "peerDependencies": {
@@ -70,6 +73,7 @@
     "@react-native/babel-preset": "0.86.2",
     "@types/react": "^19.2.0",
     "del-cli": "^7.0.0",
+    "publint": "^0.3.16",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-builder-bob": "^0.43.1",

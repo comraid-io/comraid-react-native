@@ -23,6 +23,9 @@ assert.doesNotMatch(rootEntry, /export const Comraid = ComRaid/);
 const gradle = fs.readFileSync(path.join(root, "android/build.gradle"), "utf8");
 assert.match(gradle, /namespace "com\.comraid\.reactnative"/);
 assert.match(gradle, /com\.comraid:comraid/);
+assert.match(gradle, /mavenLocal\(\)/);
+assert.match(gradle, /0\.1\.0/);
+assert.doesNotMatch(gradle, /0\.1\.0-SNAPSHOT/);
 assert.doesNotMatch(gradle, /com\.comraide/);
 
 const config = fs.readFileSync(path.join(root, "react-native.config.js"), "utf8");
