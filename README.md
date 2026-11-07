@@ -170,9 +170,17 @@ await ComRaid.logout();
 
 ### Properties and Attributes
 
+#### Automatic Properties and sessions (native)
+
+Android and iOS SDKs auto-collect app/SDK version, OS, model, locale, language, timezone
+and country on `register` and eligible foregrounds, and POST `/session` with a ~30 minute
+background debounce. React Native inherits that behavior through the native modules —
+there is no JS `session` method.
+
 #### `setDeviceProperties(properties: DeviceProperties): Promise<void>`
 
-Persists Subscription device **Properties** for the next register / token refresh.
+Optional overrides for auto-collected Properties on the next native register / token /
+session call.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -325,7 +333,7 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 |------|------|
 | `ConfigureOptions` | `initialize` / `configure` input |
 | `Capabilities` | `getCapabilities` result |
-| `DeviceProperties` | Subscription Properties for register / token refresh |
+| `DeviceProperties` | Overrides for auto-collected Properties on register / token / session |
 | `ContactAttributes` | Contact Attribute map (`string \| number \| boolean \| null`) |
 | `RemoteMessage` | Receive / present Notification event (see below) |
 | `RemoteMessageAction` | Action button on a `RemoteMessage` (`id`, `text`, optional `icon`) |
@@ -373,7 +381,7 @@ Validate inputs in JS before the TurboModule call; treat native rejections as op
 | Surface | Reason |
 |---------|--------|
 | Message / Campaign send (`/messages`, `/campaigns`) | Mobile SDKs own Subscriptions and delivery, not server-side sends — use the public API or `@comraid/node` |
-| `POST .../session` (`mobileSubscriptionSession`) | **HTTP-only** until a product/SDK wrapper lands; no RN method |
+| Public JS `session` method | Native SDKs call `/session` automatically; no TurboModule method |
 | iOS-only timer pause / resume / list APIs | Not bridged on the TurboModule (`schedule` / `startTimer` / `cancel` / `pendingSchedules` only) |
 
 ## Deep links

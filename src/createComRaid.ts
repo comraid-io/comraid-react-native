@@ -72,7 +72,11 @@ export interface PendingSchedule {
 	triggerAt: Date;
 }
 
-/** Subscription (device) Properties sent on the next register / token refresh. */
+/**
+ * Optional overrides for Subscription / Contact Properties.
+ * Native SDKs auto-collect app/SDK version, OS, model, locale, language,
+ * timezone and country on register and session; fields set here win when non-empty.
+ */
 export interface DeviceProperties {
 	appVersion?: string;
 	model?: string;
@@ -284,8 +288,8 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 		},
 
 		/**
-		 * Persist Subscription device Properties for the next register / token refresh.
-		 * Forwarded to native `ComRaid.setDeviceProperties` (Android / iOS).
+		 * Override auto-collected Properties for subsequent native register / token /
+		 * session calls. Forwarded to native `ComRaid.setDeviceProperties`.
 		 */
 		async setDeviceProperties(properties: DeviceProperties): Promise<void> {
 			const extras = properties.extras ?? {};
