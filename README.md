@@ -485,6 +485,8 @@ Zero-hand-edit happy path: add the plugin, point at `google-services.json`, set 
 }
 ```
 
+Optional iOS local override while developing: `ios.comraidPath` (path to the `comraid-ios` checkout, relative to generated `ios/`). Android local tips use [`scripts/publish-android-local.sh`](./scripts/publish-android-local.sh) → mavenLocal. See [Native SDK versions](#native-sdk-versions).
+
 You may also pass `android.googleServicesFile` as a plugin option (same path). The plugin:
 
 - Applies the `com.google.gms.google-services` Gradle plugin and copies `google-services.json` when `android.googleServicesFile` is set (Expo config or plugin option)
@@ -500,15 +502,61 @@ You may also pass `android.googleServicesFile` as a plugin option (same path). T
 
 App ID is passed at runtime via `initialize`, not only in the plugin. Create the Firebase project / APNs key in the provider consoles; the plugin only applies the native wiring.
 
+## Native SDK versions
+
+Pinned release coords (match Android/iOS `0.1.0`):
+
+| Platform | Default |
+|----------|---------|
+| Android | `com.comraid:comraid:0.1.0` (`android/build.gradle`; override with Gradle property `comraidAndroidVersion`) |
+| iOS | `ComRaid ~> 0.1.0` (`ReactNativeComraid.podspec`) |
+
+`android/build.gradle` resolves through `mavenLocal()` then Maven Central. The Expo config plugin also injects `mavenLocal()` into the host `allprojects.repositories` block. Direct `includeBuild` of `comraid-android` is not supported against Expo’s AGP (SDK ships AGP 9; Expo apps use 8.x) — use mavenLocal instead.
+
+### Local override (development)
+
+**Android — mavenLocal from a checkout path:**
+
+```sh
+./scripts/publish-android-local.sh ../comraid-android
+# equivalent: (cd ../comraid-android && ./gradlew :comraid:publishToMavenLocal)
+```
+
+Then build the RN / Expo app as usual (no extra Gradle properties).
+
+**iOS — CocoaPods path:** until the pod is on trunk, pin a checkout in the Podfile (and keep the NSE target in sync):
+
+```ruby
+pod 'ComRaid', :path => '../comraid-ios'
+```
+
+Expo: set plugin option `ios.comraidPath` (path relative to the generated `ios/` directory). The config plugin injects the Podfile override and uses the same `:path` for `ComRaidNotificationService`.
+
+Bare React Native without the Expo plugin: add the Podfile lines yourself after autolinking.
+
 ## Example app
 
 See [`example/`](./example/) — Expo SDK 57 / RN 0.86 New Architecture playground that exercises the public methods (initialize, permission, register, login, Properties/Attributes, receive events, present/ACKs, schedule/timer). Dev client only (not Expo Go). Setup notes in [`example/README.md`](./example/README.md).
+
+## Releasing
+
+Package version is `package.json` / podspec `spec.version` (SemVer, **no `v` prefix** on the git tag — e.g. `0.1.0`).
+
+```sh
+npm run check
+npm run pack:dry-run   # npm pack --dry-run + publint
+git tag 0.1.0
+git push origin 0.1.0
+```
+
+Actual `npm publish` is owned by the launch tracker (npm org / domain readiness). Draft GitHub Actions: [`.github/workflows/release-publish.yml`](./.github/workflows/release-publish.yml) — enablement blocked on [v1-tracker #35](https://github.com/comraid-io/planning/blob/main/.scratch/v1-tracker/issues/35-ci-github-actions-sdk-repos.md).
 
 ## Local verification
 
 ```sh
 npm test
 npm run check
+npm run pack:dry-run
 ```
 
 npm publish is blocked on domain/email readiness (#27); do not publish from a dirty tree.

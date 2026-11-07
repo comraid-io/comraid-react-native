@@ -12,6 +12,7 @@ const {
   withDangerousMod,
   withEntitlementsPlist,
   withInfoPlist,
+  withProjectBuildGradle,
   withXcodeProject,
 } = require('@expo/config-plugins');
 
@@ -20,6 +21,7 @@ const {
   addFcmMessagingService,
   ensureBackgroundModes,
   ensureFirebaseMessagingDependency,
+  ensureMavenLocalRepository,
   ensureNotificationColorMeta,
   modifyAppDelegate,
 } = require('./android-ios-helpers');
@@ -27,6 +29,7 @@ const {
   addEasAppExtension,
   addNotificationServicePodTarget,
   addNotificationServiceTarget,
+  applyComraidPodPathOverride,
   ensureAppGroupEntitlement,
   writeNotificationServiceFiles,
 } = require('./notification-service-extension');
@@ -37,6 +40,7 @@ function withComRaid(config, options = {}) {
   const android = options.android ?? {};
   const ios = options.ios ?? {};
   const includeMessagingService = android.includeMessagingService !== false;
+  const iosComraidPath = typeof ios.comraidPath === 'string' ? ios.comraidPath.trim() : '';
 
   // Prefer plugin option, then Expo app config `android.googleServicesFile`.
   if (!config.android) {
@@ -62,6 +66,25 @@ function withComRaid(config, options = {}) {
     }
     return current;
   });
+
+  config = withProjectBuildGradle(config, current => {
+    if (current.modResults.language === 'groovy' || current.modResults.language === 'kt') {
+      current.modResults.contents = ensureMavenLocalRepository(current.modResults.contents);
+    }
+    return current;
+  });
+
+  if (iosComraidPath) {
+    config = withDangerousMod(config, [
+      'ios',
+      current => {
+        const podfilePath = path.join(current.modRequest.platformProjectRoot, 'Podfile');
+        const podfile = fs.readFileSync(podfilePath, 'utf8');
+        fs.writeFileSync(podfilePath, applyComraidPodPathOverride(podfile, iosComraidPath));
+        return current;
+      },
+    ]);
+  }
 
   config = withAndroidManifest(config, current => {
     const application = AndroidConfig.Manifest.getMainApplicationOrThrow(current.modResults);
@@ -125,14 +148,14 @@ function withComRaid(config, options = {}) {
   }
 
   if (ios.notificationServiceExtension === true) {
-    config = withNotificationServiceExtension(config, ios);
+    config = withNotificationServiceExtension(config, ios, iosComraidPath);
   }
 
   return config;
 }
 
 /** Images, cold-device action buttons, and NSE delivered ACK need a Notification Service Extension. */
-function withNotificationServiceExtension(config, ios) {
+function withNotificationServiceExtension(config, ios, comraidPath = '') {
   const bundleIdentifier = config.ios?.bundleIdentifier;
   if (!bundleIdentifier) {
     throw new Error(
@@ -156,7 +179,12 @@ function withNotificationServiceExtension(config, ios) {
       writeNotificationServiceFiles(iosRoot, versions);
       const podfilePath = path.join(iosRoot, 'Podfile');
       const podfile = fs.readFileSync(podfilePath, 'utf8');
-      fs.writeFileSync(podfilePath, addNotificationServicePodTarget(podfile));
+      fs.writeFileSync(
+        podfilePath,
+        addNotificationServicePodTarget(podfile, {
+          comraidPath: comraidPath || undefined,
+        }),
+      );
       return current;
     },
   ]);

@@ -22,10 +22,45 @@ cp /path/to/google-services.json ./google-services.json
 npm install
 ```
 
-### Native SDK artifacts (until Maven Central / CocoaPods publish)
+## Native SDK artifacts
 
-- **Android:** publish `com.comraid:comraid` to `mavenLocal` from `../comraid-android` (or set `comraidAndroidVersion` / composite build). The RN package defaults to `0.1.0-SNAPSHOT`.
-- **iOS:** CocoaPods resolves `ComRaid` from the sibling path / your usual local pod setup for unpublished packages.
+Defaults (shipped with `@comraid/react-native`): Android `com.comraid:comraid:0.1.0`, iOS `ComRaid ~> 0.1.0`.
+
+### Against published / mavenLocal artifacts
+
+1. Publish Android to mavenLocal from a `comraid-android` checkout (skip once Central has `0.1.0`):
+
+   ```bash
+   ../scripts/publish-android-local.sh /path/to/comraid-android
+   ```
+
+2. Leave `COMRAID_IOS_PATH` unset so CocoaPods uses the released pin (trunk once published). Until trunk exists, use the local iOS override below.
+
+3. Prebuild and run:
+
+   ```bash
+   npx expo prebuild
+   npx expo run:android
+   # or
+   npx expo run:ios
+   ```
+
+### Local source override (clean checkout before native publish)
+
+**Android:** publish the sibling checkout to mavenLocal (AGP mismatch blocks `includeBuild` into Expo apps):
+
+```bash
+../scripts/publish-android-local.sh ../../../sdks-integration-comraid-android
+```
+
+**iOS:** set `COMRAID_IOS_PATH` (relative to generated `ios/`). Example for sibling worktrees under `comraid-io/.worktrees/`:
+
+```bash
+# example/.env
+COMRAID_IOS_PATH=../../../sdks-integration-comraid-ios
+```
+
+`app.config.ts` forwards that to plugin option `ios.comraidPath` (Podfile + NSE `:path`).
 
 Then:
 

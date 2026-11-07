@@ -17,6 +17,9 @@ const apnsEnvironment =
 	(process.env.EXPO_PUBLIC_COMRAID_APNS_ENVIRONMENT as 'sandbox' | 'production' | undefined) ??
 	'sandbox';
 
+/** Path to `comraid-ios` checkout, relative to generated `ios/` (local pod override). */
+const iosComraidPath = process.env.COMRAID_IOS_PATH?.trim();
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
 	...config,
 	name: 'ComRaid Example',
@@ -70,6 +73,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 					storageSuiteName: 'io.comraid.example.comraid',
 					// Push images and cold-device action buttons.
 					notificationServiceExtension: true,
+					...(iosComraidPath ? { comraidPath: iosComraidPath } : {}),
 				},
 			},
 		],
