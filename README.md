@@ -47,7 +47,7 @@ await ComRaid.setAttributes({ plan: 'premium' });
 await ComRaid.logout(); // Subscription becomes Inactive
 ```
 
-Logout means Inactive (Endpoint state). Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
+Logout means Inactive (Endpoint state): native SDKs clear persisted identity and register a fresh Subscription. Native SDKs persist Subscription id, credential, and External user ID across launches; iOS APNs updates via the bridge call `setAPNsDeviceToken`, which refreshes `/token` when a credential exists. Wire field is `external_user_id`. There is no JS HTTP client for mobile routes (ADR 0004).
 
 ### SubscribeBanner (optional UI)
 
@@ -159,7 +159,7 @@ Associates the Subscription with a Contact (`external_user_id`). Optional Identi
 
 #### `logout(): Promise<void>`
 
-Clears Login. Subscription becomes **Inactive**.
+Makes the Subscription **Inactive**, clears persisted native identity, and registers a fresh Subscription on a new Anonymous contact.
 
 **Returns:** `Promise<void>`
 
@@ -185,11 +185,11 @@ Persists Subscription device **Properties** for the next register / token refres
 
 #### `setAttributes(attributes: ContactAttributes): Promise<void>`
 
-Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null`.
+Upserts Contact **Attributes** for the logged-in `external_user_id`. Requires Login. Values are `string | number | boolean | null` (`null` removes that Attribute).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update) |
+| `attributes` | `ContactAttributes` | yes | Plain object of attribute keys (empty `{}` is a successful empty update). A `null` value removes that Attribute. |
 
 **Returns:** `Promise<void>`
 
