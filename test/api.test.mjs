@@ -104,6 +104,9 @@ test('iOS bridge relies on ComraidBridge for present and initial notification', 
 	assert.doesNotMatch(moduleMm, /"subtitle"/);
 	assert.doesNotMatch(moduleMm, /"priority"/);
 	assert.doesNotMatch(moduleMm, /"imageUrl"/);
+	// tokenTimeout from iOS ComRaidError.asNSError() uses domain "tokenTimeout"; RN rejects with that code.
+	assert.match(moduleMm, /reject\(code, error\.localizedDescription, error\)/);
+	assert.match(moduleMm, /NSString \*code = error\.domain\.length > 0 \? error\.domain : @"COMRAID_ERROR"/);
 });
 
 test('iOS APNs token refresh bridge forwards to ComRaid.setAPNsDeviceToken', () => {
