@@ -270,6 +270,32 @@ test('background, opened, and initial receive paths keep presentation fields', a
 	assert.equal(initial.priority, 'normal');
 });
 
+test('opened and initial paths surface deepLink on Android and iOS', async () => {
+	const { createComRaid, EVENT_NOTIFICATION_OPENED } = await loadCreateComRaid();
+	const { native } = mockNative({
+		getInitialNotification: async () => ({
+			title: 'Cold start',
+			data: {},
+			deepLink: 'myapp://orders/42',
+		}),
+	});
+	const { bus, emit } = mockEvents();
+	const api = createComRaid(native, bus);
+
+	const opened = [];
+	api.onNotificationOpenedApp(message => opened.push(message));
+	emit(EVENT_NOTIFICATION_OPENED, {
+		title: 'Opened',
+		data: {},
+		deepLink: 'myapp://orders/42',
+	});
+	assert.equal(opened[0].deepLink, 'myapp://orders/42');
+
+	const initial = await api.getInitialNotification();
+	assert.ok(initial);
+	assert.equal(initial.deepLink, 'myapp://orders/42');
+});
+
 test('getToken returns Provider token from TurboModule', async () => {
 	const { createComRaid } = await loadCreateComRaid();
 	const { native, calls } = mockNative();
