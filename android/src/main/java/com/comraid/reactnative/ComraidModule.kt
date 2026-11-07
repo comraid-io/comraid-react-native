@@ -345,6 +345,27 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     )
   }
 
+  override fun pauseTimer(id: String, promise: Promise) = resolve(promise) {
+    timerResult(ComRaid.pauseTimer(id))
+  }
+
+  override fun resumeTimer(id: String, promise: Promise) = resolve(promise) {
+    timerResult(ComRaid.resumeTimer(id))
+  }
+
+  override fun cancelTimer(id: String, promise: Promise) = resolve(promise) {
+    ComRaid.cancelTimer(id)
+    null
+  }
+
+  override fun timers(promise: Promise) = resolve(promise) {
+    Arguments.createArray().apply {
+      ComRaid.timers().forEach { timer ->
+        pushMap(timerResult(timer))
+      }
+    }
+  }
+
   override fun cancel(id: String, promise: Promise) = resolve(promise) {
     ComRaid.cancel(id)
     null
@@ -511,6 +532,15 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     putString("appliedPrecision", value.appliedPrecision.name.lowercase())
     putDouble("triggerAtMillis", value.triggerAtMillis.toDouble())
     putString("fallbackReason", value.fallbackReason ?: "")
+  }
+
+  private fun timerResult(value: com.comraid.android.ComRaidTimer) = Arguments.createMap().apply {
+    putString("id", value.id)
+    putString("title", value.notification.title)
+    putString("body", value.notification.body)
+    putString("state", value.state.name.lowercase())
+    putDouble("triggerAtMillis", (value.targetAtMillis ?: 0L).toDouble())
+    putDouble("remainingDurationMs", value.remainingDurationMillis.toDouble())
   }
 
   private inline fun resolve(promise: Promise, block: () -> Any?) {
