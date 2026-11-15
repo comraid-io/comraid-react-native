@@ -58,15 +58,42 @@ test('RemoteMessage declares every field that appears in any golden expectedEven
 	);
 });
 
+/** Collect cr_* keys from a golden pushPayload (FCM data map or APNs custom keys). */
+function reservedKeysInPushPayload(pushPayload) {
+	const keys = new Set();
+	if (!pushPayload || typeof pushPayload !== 'object') return keys;
+	const data = pushPayload.data;
+	if (data && typeof data === 'object' && !Array.isArray(data)) {
+		for (const key of Object.keys(data)) {
+			if (key.startsWith('cr_')) keys.add(key);
+		}
+	}
+	for (const key of Object.keys(pushPayload)) {
+		if (key.startsWith('cr_')) keys.add(key);
+	}
+	return keys;
+}
+
 test('golden expectedEvent data never exposes Reserved cr_ keys', () => {
+	const declared = declaredRemoteMessageFields(fs.readFileSync(remoteMessageSource, 'utf8'));
 	const files = fs.readdirSync(goldensDir).filter(name => name.endsWith('.json'));
 	const offenders = [];
 	for (const name of files) {
 		const golden = JSON.parse(fs.readFileSync(path.join(goldensDir, name), 'utf8'));
 		const data = golden.expectedEvent?.data;
 		assert.ok(data && typeof data === 'object' && !Array.isArray(data), `${name}: data map required`);
+		const reserved = reservedKeysInPushPayload(golden.pushPayload);
 		for (const key of Object.keys(data)) {
 			if (key.startsWith('cr_')) offenders.push(`${name}: data.${key}`);
+		}
+		// APNs alert without actions may carry no cr_* custom keys (presentation stays in aps).
+		for (const key of reserved) {
+			if (Object.prototype.hasOwnProperty.call(data, key)) {
+				offenders.push(`${name}: expectedEvent.data retains wire key ${key}`);
+			}
+			if (declared.has(key)) {
+				offenders.push(`${name}: RemoteMessage declares Reserved key ${key}`);
+			}
 		}
 	}
 	assert.deepEqual(offenders, [], `Reserved keys must not appear in RN data: ${offenders.join(', ')}`);
