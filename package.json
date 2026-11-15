@@ -35,6 +35,8 @@
     "test": "node --test test/*.test.mjs",
     "check": "npm run typecheck && npm run prepare && node --check app.plugin.js && node --check plugin/build/index.js && node --check plugin/build/android-ios-helpers.js && node --check plugin/build/notification-service-extension.js && node scripts/check-naming.mjs && npm test",
     "check:naming": "node scripts/check-naming.mjs",
+    "sync:push-payload": "node scripts/sync-push-payload-goldens.mjs",
+    "sync:push-payload:check": "node scripts/sync-push-payload-goldens.mjs --check",
     "pack:check": "npm pack --dry-run",
     "publint": "publint",
     "pack:dry-run": "npm run pack:check && npm run publint"
