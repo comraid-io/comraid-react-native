@@ -1,8 +1,14 @@
+import { ComRaid } from '@comraid/react-native';
 import { registerRootComponent } from 'expo';
 
 import App from './App';
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
+/**
+ * Must run before the React tree mounts (same pattern as RNFirebase).
+ * Background / killed deliveries land here; the UI also mirrors them into the event log.
+ */
+ComRaid.setBackgroundMessageHandler(async message => {
+	console.log('[ComRaid example] background message', message);
+});
+
 registerRootComponent(App);

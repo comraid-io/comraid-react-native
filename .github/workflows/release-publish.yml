@@ -1,0 +1,68 @@
+# Draft release / pack dry-run workflow (sdks-devtools-v1 ticket 14).
+#
+# Blocked on enabling CI for this repo: planning/.scratch/v1-tracker/issues/35-ci-github-actions-sdk-repos.md
+# (#35 is ready-for-human — runners, secrets, branch protection). Until #35 lands:
+# - Treat this file as the intended workflow shape
+# - Run the dry-run locally: npm run pack:dry-run
+#
+# Required secrets for the publish job (never commit): NPM_TOKEN (npm org publish).
+
+name: Release publish
+
+on:
+  pull_request:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    name: npm pack + publint dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org/
+      - name: Install
+        run: npm install
+      - name: Check
+        run: npm run check
+      - name: Pack dry-run
+        run: npm run pack:check
+      - name: publint
+        run: npm run publint
+
+  publish:
+    name: npm publish
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org/
+      - name: Install
+        run: npm install
+      - name: Verify tag matches package.json version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag '$tag' must equal package.json version '$version' (no v prefix)" >&2
+            exit 1
+          fi
+      - name: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "NPM_TOKEN is not set; cannot publish." >&2
+            exit 1
+          fi
+          npm publish --access public
