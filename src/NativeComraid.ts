@@ -89,6 +89,26 @@ export interface Spec extends TurboModule {
 	getInitialNotification(): Promise<CodegenTypes.UnsafeObject | null>;
 	presentNotification(messageJson: string): Promise<void>;
 	setBackgroundHandlerRegistered(registered: boolean): Promise<void>;
+	/** In-app messages: local triggers (kept on the device, passed to a presenter). */
+	addTrigger(key: string, value: string): Promise<void>;
+	addTriggers(triggersJson: string): Promise<void>;
+	removeTrigger(key: string): Promise<void>;
+	clearTriggers(): Promise<void>;
+	/** Resolves a string map; codegen cannot type string maps, so it is untyped here. */
+	getTriggers(): Promise<CodegenTypes.UnsafeObject>;
+	setInAppMessagesPaused(paused: boolean): Promise<void>;
+	isInAppMessagesPaused(): Promise<boolean>;
+	/** Opt this Contact out of / back in to In-app messages (the `in_app` channel, independent of push). */
+	optOutInApp(): Promise<void>;
+	optInInApp(): Promise<void>;
+	/**
+	 * When enabled, native draws no In-app message itself: it emits `comraid_in_app_present` and the
+	 * JS presenter reports outcomes back with the three calls below, keyed by message id.
+	 */
+	setInAppMessagePresenterEnabled(enabled: boolean): Promise<void>;
+	inAppImpression(messageId: string): Promise<void>;
+	inAppClicked(messageId: string, buttonId: string): Promise<void>;
+	inAppDismissed(messageId: string): Promise<void>;
 	/** TurboModule event emitter contract. */
 	addListener(eventName: string): void;
 	removeListeners(count: number): void;
