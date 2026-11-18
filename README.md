@@ -250,6 +250,43 @@ await ComRaid.acknowledgeOpened(deliveryId, attributionToken, 'accept');
 await ComRaid.flushAcks();
 ```
 
+### Live activities
+
+A Live activity puts one thing on the lock screen or in the notification shade that changes for hours: a delivery, a ride, a score. Your server starts and updates it through the ComRaid API (`POST /activities`, `POST /activities/{activity_id}/updates`). This package is a thin bridge: it lists and ends them from JavaScript. What each platform does:
+
+| | Android | iOS |
+|---|---|---|
+| **Shown by** | The Android SDK draws an ongoing **live update** from the server's data message. On Android 16 and later it uses the platform progress style and asks to be promoted. No app code. | Your app: iOS draws it from **your own Swift** `ActivityAttributes` and Widget Extension. |
+| **Started by** | Your server | Your app, with Apple's API (`pushType: .token`) |
+| **Needs** | Notification permission | iOS 16.2 or later, `NSSupportsLiveActivities` set to `YES` in `Info.plist`, a Widget Extension |
+
+JavaScript cannot define or start an iOS Live Activity: its attributes and widget are Swift types. Start it in your app's native code and hand it to ComRaid so the update token reaches your server. Call `trackRunningActivities` once at launch so activities that outlived the process are tracked again:
+
+```swift
+// Where you start the activity
+let activity = try Activity.request(
+  attributes: DeliveryAttributes(orderId: "order_8392"),
+  content: .init(state: .init(status: "preparing"), staleDate: nil),
+  pushType: .token
+)
+await ComRaid.shared.trackActivity(activity, id: "order_8392", type: "delivery")
+
+// Once at launch (AppDelegate), for each attribute type
+await ComRaid.shared.trackRunningActivities(of: DeliveryAttributes.self, type: "delivery") {
+  $0.attributes.orderId
+}
+```
+
+The Contact must be logged in: ComRaid refuses activity tokens from anonymous Subscriptions, so the native SDK waits and sends once they are. Live activities need a native SDK version that includes them (see [Native SDK versions](#native-sdk-versions)).
+
+#### `listActivities(): Promise<LiveActivity[]>`
+
+Live activities running on this device, as `{ id, type }`. iOS lists the ones your app passed to `trackActivity`; Android lists the live updates that are showing. A finished activity is not listed.
+
+#### `endActivity(id: string): Promise<boolean>`
+
+End a Live activity from the app. It disappears at once and ComRaid is told it ended on this device, so the server stops sending to it; the activity goes on for the Contact's other devices until your server ends it. Resolves `false` when it is not running. Rejects with a `TypeError` for an empty id.
+
 ### Local schedule and timers
 
 Local notifications only — not server **Message** / **Campaign** sends. Prefer ComRaid schedule APIs over Expo `Notifications.scheduleNotificationAsync` when using this package.
@@ -381,6 +418,7 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 | `ScheduleOptions` / `TimerOptions` | `schedule` / `startTimer` input |
 | `ScheduleResult` / `PendingSchedule` | Schedule outputs |
 | `Timer` / `TimerState` | Timer pause/resume/list outputs |
+| `LiveActivity` | A running Live activity: `id` (your activity id) and `type` |
 | `SchedulePrecision` / `FallbackPolicy` / `APNsEnvironment` | Enumerated string unions |
 
 ### `RemoteMessage`
@@ -520,6 +558,8 @@ Pinned release coords (match Android/iOS `0.1.0`):
 | iOS | `ComRaid ~> 0.1.0` (`ReactNativeComraid.podspec`) |
 
 `android/build.gradle` resolves through `mavenLocal()` then Maven Central. The Expo config plugin also injects `mavenLocal()` into the host `allprojects.repositories` block. Direct `includeBuild` of `comraid-android` is not supported against Expo’s AGP (SDK ships AGP 9; Expo apps use 8.x) — use mavenLocal instead.
+
+> **Live activities need a native SDK version that includes them.** The default pins above predate Live activities: until the next Android and iOS SDK releases are published, use the local override below or the bridge will not compile against the older SDKs.
 
 ### Local override (development)
 
