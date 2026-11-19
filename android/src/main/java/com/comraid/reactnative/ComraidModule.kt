@@ -297,6 +297,23 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     null
   }
 
+  override fun endActivity(id: String, promise: Promise) = resolve(promise) {
+    ComRaid.endLiveActivity(id)
+  }
+
+  override fun listActivities(promise: Promise) = resolve(promise) {
+    Arguments.createArray().apply {
+      ComRaid.liveActivities().forEach { activity ->
+        pushMap(
+          Arguments.createMap().apply {
+            putString("id", activity.id)
+            putString("type", activity.type)
+          },
+        )
+      }
+    }
+  }
+
   override fun getToken(promise: Promise) = resolve(promise) {
     ComRaid.getToken()
   }

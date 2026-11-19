@@ -50,6 +50,11 @@ export type NativeRemoteMessage = {
 	priority?: 'high' | 'normal';
 };
 
+export type NativeLiveActivity = {
+	id: string;
+	type: string;
+};
+
 export interface Spec extends TurboModule {
 	configure(
 		appId: string,
@@ -83,6 +88,11 @@ export interface Spec extends TurboModule {
 		actionId: string,
 	): Promise<boolean>;
 	flushAcks(): Promise<void>;
+
+	/** End a tracked Live activity (iOS) or a showing live update (Android). False if it is not running. */
+	endActivity(id: string): Promise<boolean>;
+	/** Live activities running on this device. */
+	listActivities(): Promise<ReadonlyArray<NativeLiveActivity>>;
 	getCapabilities(): Promise<NativeCapabilities>;
 	getToken(): Promise<string>;
 	/** Resolves a `NativeRemoteMessage`; codegen cannot type string maps, so it is untyped here. */

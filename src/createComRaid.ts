@@ -187,6 +187,14 @@ export interface InAppMessageListener {
 	didClick?(message: InAppMessage, button: InAppButton): void;
 }
 
+/** A Live activity running on this device. */
+export type LiveActivity = {
+	/** Your own activity id, the same one used in the ComRaid API. */
+	id: string;
+	/** The activity type, for example `delivery`. */
+	type: string;
+};
+
 export type Unsubscribe = () => void;
 
 export type EventSubscription = { remove(): void };
@@ -643,6 +651,28 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 		): Promise<boolean> {
 			if (!deliveryId.trim() || !attributionToken.trim()) return false;
 			return native().acknowledgeOpened(deliveryId, attributionToken, actionId ?? '');
+		},
+
+		/**
+		 * End a Live activity from the app. iOS: one you started and passed to `trackActivity`;
+		 * Android: one showing as a live update. Resolves false when it is not running.
+		 */
+		async endActivity(id: string): Promise<boolean> {
+			if (typeof id !== 'string' || !id.trim()) {
+				throw new TypeError('id must be a non-empty string');
+			}
+			return native().endActivity(id);
+		},
+
+		/** Live activities running on this device, as `{ id, type }`. */
+		async listActivities(): Promise<LiveActivity[]> {
+			const raw = await native().listActivities();
+			const out: LiveActivity[] = [];
+			for (const item of raw ?? []) {
+				if (item == null || typeof item.id !== 'string' || !item.id) continue;
+				out.push({ id: item.id, type: typeof item.type === 'string' ? item.type : '' });
+			}
+			return out;
 		},
 
 		/** Flush any durable ACK backlog. */

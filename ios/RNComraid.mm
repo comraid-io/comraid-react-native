@@ -291,6 +291,32 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
     }
   }];
 }
+
+- (void)endActivity:(NSString *)id
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] endActivityWithId:id completion:^(BOOL ok, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(@(ok));
+    }
+  }];
+}
+
+- (void)listActivities:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] listActivitiesWithCompletion:^(NSArray *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value ?: @[]);
+    }
+  }];
+}
+
 - (void)schedule:(NSString *)id
            title:(NSString *)title
             body:(NSString *)body
