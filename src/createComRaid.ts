@@ -131,6 +131,62 @@ export interface RemoteMessage {
 	priority?: 'high' | 'normal';
 }
 
+/** How an In-app message is laid out (wire values). */
+export type InAppLayout = 'modal' | 'banner_top' | 'banner_bottom' | 'fullscreen';
+
+/** A button on an In-app message. Your app routes `deepLink`; the SDK never opens it. */
+export interface InAppButton {
+	id: string;
+	label: string;
+	deepLink?: string;
+}
+
+/** One In-app message as received from ComRaid. */
+export interface InAppMessage {
+	id: string;
+	layout: InAppLayout;
+	title: string;
+	body: string;
+	imageUrl?: string;
+	buttons: InAppButton[];
+	/** Start of the display window; absent when open-ended. */
+	startAt?: Date;
+	/** End of the display window; absent when open-ended. */
+	endAt?: Date;
+	/** True for a Dashboard Test send: shown normally, but no ACKs are sent for it. */
+	isTest: boolean;
+}
+
+/**
+ * Reports what happened to an In-app message you draw yourself. `clicked` and `dismissed`
+ * behave as on the native SDKs: a close after a click is not recorded as a dismissal.
+ */
+export interface InAppMessageHandle {
+	/** The message is on screen. Recorded once. */
+	impression(): Promise<void>;
+	/** The user tapped the button with this id. Unknown ids are ignored. */
+	clicked(buttonId: string): Promise<void>;
+	/** The user closed the message. Recorded once. */
+	dismissed(): Promise<void>;
+}
+
+/** Draws In-app messages in place of the SDK's default layouts. */
+export type InAppMessagePresenter = (
+	message: InAppMessage,
+	handle: InAppMessageHandle,
+	triggers: Readonly<Record<string, string>>,
+) => void | Promise<void>;
+
+/** Observes In-app messages. A listener cannot change or suppress a message; every method is optional. */
+export interface InAppMessageListener {
+	willDisplay?(message: InAppMessage): void;
+	didDisplay?(message: InAppMessage): void;
+	willDismiss?(message: InAppMessage): void;
+	didDismiss?(message: InAppMessage): void;
+	/** A button was tapped. Route `button.deepLink` yourself. */
+	didClick?(message: InAppMessage, button: InAppButton): void;
+}
+
 export type Unsubscribe = () => void;
 
 export type EventSubscription = { remove(): void };
@@ -143,6 +199,68 @@ export const EVENT_MESSAGE = 'comraid_message';
 export const EVENT_BACKGROUND_MESSAGE = 'comraid_background_message';
 export const EVENT_NOTIFICATION_OPENED = 'comraid_notification_opened';
 export const EVENT_TOKEN_REFRESH = 'comraid_token_refresh';
+/** Native asks the JS presenter to draw a message: `{ message, triggers }`. */
+export const EVENT_IN_APP_PRESENT = 'comraid_in_app_present';
+/** Native reports the message lifecycle: `{ type, message, button? }`. */
+export const EVENT_IN_APP_LIFECYCLE = 'comraid_in_app_lifecycle';
+
+const IN_APP_LAYOUTS: ReadonlyArray<InAppLayout> = [
+	'modal',
+	'banner_top',
+	'banner_bottom',
+	'fullscreen',
+];
+
+function optionalString(value: unknown): string | undefined {
+	return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+function parseInAppButton(raw: unknown): InAppButton | null {
+	if (raw == null || typeof raw !== 'object') return null;
+	const value = raw as Record<string, unknown>;
+	if (typeof value.id !== 'string' || value.id === '') return null;
+	return {
+		id: value.id,
+		label: typeof value.label === 'string' ? value.label : '',
+		deepLink: optionalString(value.deepLink),
+	};
+}
+
+function dateFromMillis(value: unknown): Date | undefined {
+	return typeof value === 'number' && Number.isFinite(value) && value > 0 ? new Date(value) : undefined;
+}
+
+/** Parse a native In-app message; returns null for anything the SDK could not have drawn. */
+function parseInAppMessage(raw: unknown): InAppMessage | null {
+	if (raw == null || typeof raw !== 'object') return null;
+	const value = raw as Record<string, unknown>;
+	if (typeof value.id !== 'string' || value.id === '') return null;
+	if (!IN_APP_LAYOUTS.includes(value.layout as InAppLayout)) return null;
+	const buttons = Array.isArray(value.buttons)
+		? value.buttons.map(parseInAppButton).filter((b): b is InAppButton => b != null)
+		: [];
+	return {
+		id: value.id,
+		layout: value.layout as InAppLayout,
+		title: typeof value.title === 'string' ? value.title : '',
+		body: typeof value.body === 'string' ? value.body : '',
+		imageUrl: optionalString(value.imageUrl),
+		buttons,
+		startAt: dateFromMillis(value.startAt),
+		endAt: dateFromMillis(value.endAt),
+		isTest: value.isTest === true,
+	};
+}
+
+function parseStringMap(raw: unknown): Record<string, string> {
+	const out: Record<string, string> = {};
+	if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
+		for (const [key, value] of Object.entries(raw)) {
+			if (typeof value === 'string') out[key] = value;
+		}
+	}
+	return out;
+}
 
 /** Presentation string fields: keep non-empty strings only (absent when unset). */
 function optionalPresentationString(value: unknown): string | undefined {
@@ -198,6 +316,8 @@ function parseRemoteMessage(raw: unknown): RemoteMessage {
 export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 	let backgroundHandler: ((message: RemoteMessage) => Promise<void> | void) | null = null;
 	let backgroundSubscription: EventSubscription | null = null;
+	let inAppPresenter: InAppMessagePresenter | null = null;
+	let inAppPresenterSubscription: EventSubscription | null = null;
 
 	function native() {
 		if (!nativeModule) {
@@ -239,6 +359,44 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 			triggerAt: new Date(value.triggerAtMillis),
 			fallbackReason: value.fallbackReason || undefined,
 		};
+	}
+
+	function inAppHandle(messageId: string): InAppMessageHandle {
+		return {
+			async impression() {
+				await native().inAppImpression(messageId);
+			},
+			async clicked(buttonId: string) {
+				if (typeof buttonId !== 'string' || !buttonId.trim()) {
+					throw new TypeError('buttonId must not be empty');
+				}
+				await native().inAppClicked(messageId, buttonId);
+			},
+			async dismissed() {
+				await native().inAppDismissed(messageId);
+			},
+		};
+	}
+
+	function requireTriggerKey(key: unknown): asserts key is string {
+		if (typeof key !== 'string' || !key.trim()) throw new TypeError('trigger key must not be empty');
+	}
+
+	function triggerMap(triggers: unknown): Record<string, string> {
+		const prototype = triggers == null ? undefined : Object.getPrototypeOf(triggers);
+		if (
+			triggers == null ||
+			typeof triggers !== 'object' ||
+			(prototype !== Object.prototype && prototype !== null)
+		) {
+			// A Map, Date or class instance would serialise to an empty or wrong object.
+			throw new TypeError('triggers must be a plain object');
+		}
+		for (const [key, value] of Object.entries(triggers)) {
+			requireTriggerKey(key);
+			if (typeof value !== 'string') throw new TypeError('trigger values must be strings');
+		}
+		return triggers as Record<string, string>;
 	}
 
 	return {
@@ -295,6 +453,151 @@ export function createComRaid(nativeModule: Spec | null, events: EventBus) {
 
 		async optOut(): Promise<void> {
 			await native().optOut();
+		},
+
+		/** Opt this Contact out of In-app messages (independent of push `optOut`). */
+		async optOutInApp(): Promise<void> {
+			await native().optOutInApp();
+		},
+
+		/** Opt this Contact back in to In-app messages. */
+		async optInInApp(): Promise<void> {
+			await native().optInInApp();
+		},
+
+		/**
+		 * Set a local trigger. Triggers stay on the device and are passed to your presenter; they do
+		 * not decide which message shows.
+		 */
+		async addTrigger(key: string, value: string): Promise<void> {
+			requireTriggerKey(key);
+			if (typeof value !== 'string') throw new TypeError('trigger values must be strings');
+			await native().addTrigger(key, value);
+		},
+
+		async addTriggers(triggers: Readonly<Record<string, string>>): Promise<void> {
+			await native().addTriggers(JSON.stringify(triggerMap(triggers)));
+		},
+
+		async removeTrigger(key: string): Promise<void> {
+			requireTriggerKey(key);
+			await native().removeTrigger(key);
+		},
+
+		async clearTriggers(): Promise<void> {
+			await native().clearTriggers();
+		},
+
+		async getTriggers(): Promise<Record<string, string>> {
+			return parseStringMap(await native().getTriggers());
+		},
+
+		/** Pause or resume showing In-app messages on this device. Messages wait while paused. */
+		async setInAppMessagesPaused(paused: boolean): Promise<void> {
+			if (typeof paused !== 'boolean') throw new TypeError('paused must be a boolean');
+			await native().setInAppMessagesPaused(paused);
+		},
+
+		async isInAppMessagesPaused(): Promise<boolean> {
+			return (await native().isInAppMessagesPaused()) === true;
+		},
+
+		/** Observe In-app messages being displayed, clicked and dismissed. */
+		addInAppMessageListener(listener: InAppMessageListener): Unsubscribe {
+			const sub = events.addListener(EVENT_IN_APP_LIFECYCLE, event => {
+				if (event == null || typeof event !== 'object') return;
+				const payload = event as { type?: unknown; message?: unknown; button?: unknown };
+				const message = parseInAppMessage(payload.message);
+				if (message == null) return;
+				try {
+					switch (payload.type) {
+						case 'willDisplay':
+							listener.willDisplay?.(message);
+							break;
+						case 'didDisplay':
+							listener.didDisplay?.(message);
+							break;
+						case 'willDismiss':
+							listener.willDismiss?.(message);
+							break;
+						case 'didDismiss':
+							listener.didDismiss?.(message);
+							break;
+						case 'didClick': {
+							const button = parseInAppButton(payload.button);
+							if (button != null) listener.didClick?.(message, button);
+							break;
+						}
+						default:
+							break; // a lifecycle step this version does not know about
+					}
+				} catch {
+					// A host listener bug must not stop the other listeners.
+				}
+			});
+			return () => sub.remove();
+		},
+
+		/**
+		 * Draw In-app messages yourself. While a presenter is set the SDK draws nothing: you receive
+		 * the message, a handle and the triggers, and report impression / click / dismissal through
+		 * the handle. Pass `null` to return to the SDK's layouts.
+		 */
+		async setInAppMessagePresenter(presenter: InAppMessagePresenter | null): Promise<void> {
+			if (presenter !== null && typeof presenter !== 'function') {
+				throw new TypeError('presenter must be a function or null');
+			}
+			if (presenter === null) {
+				// Tell native first and keep listening until it confirms, so a message it hands over
+				// just before switching modes still reaches the presenter.
+				try {
+					await native().setInAppMessagePresenterEnabled(false);
+				} finally {
+					inAppPresenterSubscription?.remove();
+					inAppPresenterSubscription = null;
+					inAppPresenter = null;
+				}
+				return;
+			}
+			const previousPresenter = inAppPresenter;
+			const hadSubscription = inAppPresenterSubscription != null;
+			inAppPresenter = presenter;
+			if (inAppPresenterSubscription == null) {
+				// Subscribe before enabling native, so no message handed over right away is missed.
+				inAppPresenterSubscription = events.addListener(EVENT_IN_APP_PRESENT, event => {
+					if (event == null || typeof event !== 'object') return;
+					const payload = event as { message?: unknown; triggers?: unknown };
+					const message = parseInAppMessage(payload.message);
+					if (message == null) {
+						console.warn('@comraid/react-native: ignoring an unknown In-app message (unsupported layout or id)');
+						return;
+					}
+					const current = inAppPresenter;
+					if (current == null) return;
+					const failed = (error: unknown) =>
+						console.warn(
+							`@comraid/react-native: the In-app presenter failed: ${error instanceof Error ? error.message : String(error)}`,
+						);
+					try {
+						Promise.resolve(
+							current(message, inAppHandle(message.id), parseStringMap(payload.triggers)),
+						).catch(failed);
+					} catch (error) {
+						failed(error);
+					}
+				});
+			}
+			try {
+				await native().setInAppMessagePresenterEnabled(true);
+			} catch (error) {
+				// Native did not switch modes: leave JS exactly as it was before this call.
+				if (!hadSubscription) {
+					inAppPresenterSubscription?.remove();
+					inAppPresenterSubscription = null;
+				}
+				inAppPresenter = previousPresenter;
+				throw error;
+			}
 		},
 
 		/**
