@@ -30,6 +30,17 @@ static void RNComraidReject(NSError *error, RCTPromiseRejectBlock reject)
   reject(code, error.localizedDescription, error);
 }
 
+static void (^RNComraidVoidCompletion(RCTPromiseResolveBlock resolve, RCTPromiseRejectBlock reject))(NSError *)
+{
+  return ^(NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(nil);
+    }
+  };
+}
+
 static void RNComraidEmitDeviceEvent(NSString *name, NSDictionary *body)
 {
   RCTBridge *bridge = [RCTBridge currentBridge];
@@ -280,6 +291,32 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
     }
   }];
 }
+
+- (void)endActivity:(NSString *)id
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] endActivityWithId:id completion:^(BOOL ok, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(@(ok));
+    }
+  }];
+}
+
+- (void)listActivities:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] listActivitiesWithCompletion:^(NSArray *value, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(value ?: @[]);
+    }
+  }];
+}
+
 - (void)schedule:(NSString *)id
            title:(NSString *)title
             body:(NSString *)body
@@ -473,6 +510,115 @@ displayForegroundNotifications:(BOOL)displayForegroundNotifications
       resolve(nil);
     }
   }];
+}
+
+#pragma mark - In-app messages (thin forwards to the iOS SDK's Objective-C bridge)
+
+- (void)addTrigger:(NSString *)key
+             value:(NSString *)value
+           resolve:(RCTPromiseResolveBlock)resolve
+            reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] addTriggerWithKey:key value:value completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)addTriggers:(NSString *)triggersJson
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] addTriggersWithJson:triggersJson completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)removeTrigger:(NSString *)key
+              resolve:(RCTPromiseResolveBlock)resolve
+               reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] removeTriggerWithKey:key completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)clearTriggers:(RCTPromiseResolveBlock)resolve
+               reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] clearTriggersWithCompletion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)getTriggers:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] getTriggersWithCompletion:^(NSDictionary *triggers, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(triggers ?: @{});
+    }
+  }];
+}
+
+- (void)setInAppMessagesPaused:(BOOL)paused
+                       resolve:(RCTPromiseResolveBlock)resolve
+                        reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] setInAppMessagesPaused:paused completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)isInAppMessagesPaused:(RCTPromiseResolveBlock)resolve
+                       reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] isInAppMessagesPausedWithCompletion:^(BOOL paused, NSError *error) {
+    if (error) {
+      RNComraidReject(error, reject);
+    } else {
+      resolve(@(paused));
+    }
+  }];
+}
+
+- (void)optOutInApp:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] optOutInAppWithCompletion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)optInInApp:(RCTPromiseResolveBlock)resolve
+            reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] optInInAppWithCompletion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)setInAppMessagePresenterEnabled:(BOOL)enabled
+                                resolve:(RCTPromiseResolveBlock)resolve
+                                 reject:(RCTPromiseRejectBlock)reject
+{
+  RNComraidEnsureEventEmitter();
+  [[ComraidBridge shared] setInAppMessagePresenterEnabled:enabled completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)inAppImpression:(NSString *)messageId
+                resolve:(RCTPromiseResolveBlock)resolve
+                 reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] inAppImpressionWithMessageId:messageId completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)inAppClicked:(NSString *)messageId
+            buttonId:(NSString *)buttonId
+             resolve:(RCTPromiseResolveBlock)resolve
+              reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] inAppClickedWithMessageId:messageId buttonId:buttonId completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)inAppDismissed:(NSString *)messageId
+               resolve:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject
+{
+  [[ComraidBridge shared] inAppDismissedWithMessageId:messageId completion:RNComraidVoidCompletion(resolve, reject)];
+}
+
+- (void)invalidate
+{
+  // A JS presenter that outlives its React instance would receive every message and draw none.
+  [[ComraidBridge shared] setInAppMessagePresenterEnabled:NO completion:^(NSError *error) {}];
 }
 
 - (void)addListener:(NSString *)eventName
