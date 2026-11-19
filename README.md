@@ -250,6 +250,115 @@ await ComRaid.acknowledgeOpened(deliveryId, attributionToken, 'accept');
 await ComRaid.flushAcks();
 ```
 
+### In-app messages
+
+In-app messages are shown inside your app: a modal, a banner at the top or bottom, or a full-screen layout, with up to two buttons. They need no notification permission. The native SDKs fetch eligible messages on each foreground, show at most one per foreground, and report impressions, clicks and dismissals for you. Each Contact sees a message once. This package is a thin bridge: it forwards to the native SDKs and does not add its own logic.
+
+By default the native SDK draws the message. To route a button's deep link in your own navigation, listen for clicks. To draw the message yourself, set a presenter.
+
+```ts
+ComRaid.addInAppMessageListener({
+  didClick: (message, button) => {
+    if (button.deepLink) router.push(button.deepLink);
+  },
+});
+```
+
+#### `setInAppMessagePresenter(presenter: InAppMessagePresenter | null): Promise<void>`
+
+Draw In-app messages yourself. While a presenter is set the native SDK draws nothing: `presenter(message, handle, triggers)` is called instead, and you report what happened through the handle. Pass `null` to return to the native layouts. Call it from your app entry before other setup so no message is drawn natively first.
+
+| Handle method | Meaning |
+|---------------|---------|
+| `impression()` | The message is on screen. Recorded once. |
+| `clicked(buttonId)` | The user tapped that button. Unknown ids are ignored. |
+| `dismissed()` | The user closed it. Recorded once. If a button was tapped first, the click is the outcome: no dismissal is recorded. |
+
+A Dashboard Test send reaches the presenter too (`message.isTest`); no ACKs are sent for it. If your presenter throws or rejects, the error is swallowed and the message is not shown again this foreground.
+
+**Returns:** `Promise<void>`
+
+#### `addInAppMessageListener(listener: InAppMessageListener): Unsubscribe`
+
+Observe `willDisplay`, `didDisplay`, `willDismiss`, `didDismiss` and `didClick(message, button)`. Every method is optional. A listener only observes: it cannot change or suppress a message. A listener that throws does not stop the others.
+
+**Returns:** `Unsubscribe`
+
+#### `addTrigger(key: string, value: string): Promise<void>`
+
+Set a local trigger. Triggers stay on the device and are passed to your presenter. They do not yet decide which message is shown: ComRaid messages carry no trigger rules.
+
+#### `addTriggers(triggers: Record<string, string>): Promise<void>`
+
+Set several triggers at once. Values must be strings.
+
+#### `removeTrigger(key: string): Promise<void>`
+
+Remove one trigger.
+
+#### `clearTriggers(): Promise<void>`
+
+Remove all triggers.
+
+#### `getTriggers(): Promise<Record<string, string>>`
+
+The triggers currently set.
+
+#### `setInAppMessagesPaused(paused: boolean): Promise<void>`
+
+Pause or resume showing In-app messages on this device. A message waits while paused.
+
+#### `isInAppMessagesPaused(): Promise<boolean>`
+
+Whether showing is paused.
+
+#### `optOutInApp(): Promise<void>`
+
+Opt this Contact out of In-app messages. This is the `in_app` channel and is independent of push `optOut()`. Cached messages stop showing at once.
+
+#### `optInInApp(): Promise<void>`
+
+Opt this Contact back in.
+
+**Native SDK version:** In-app messages need a native SDK version that includes them. Until those releases are published, point Android and iOS at local builds (see [Local override](#local-override-development)); the default pins below predate In-app messages and will not compile against this bridge.
+
+### Live activities
+
+A Live activity puts one thing on the lock screen or in the notification shade that changes for hours: a delivery, a ride, a score. Your server starts and updates it through the ComRaid API (`POST /activities`, `POST /activities/{activity_id}/updates`). This package is a thin bridge: it lists and ends them from JavaScript. What each platform does:
+
+| | Android | iOS |
+|---|---|---|
+| **Shown by** | The Android SDK draws an ongoing **live update** from the server's data message. On Android 16 and later it uses the platform progress style and asks to be promoted. No app code. | Your app: iOS draws it from **your own Swift** `ActivityAttributes` and Widget Extension. |
+| **Started by** | Your server | Your app, with Apple's API (`pushType: .token`) |
+| **Needs** | Notification permission | iOS 16.2 or later, `NSSupportsLiveActivities` set to `YES` in `Info.plist`, a Widget Extension |
+
+JavaScript cannot define or start an iOS Live Activity: its attributes and widget are Swift types. Start it in your app's native code and hand it to ComRaid so the update token reaches your server. Call `trackRunningActivities` once at launch so activities that outlived the process are tracked again:
+
+```swift
+// Where you start the activity
+let activity = try Activity.request(
+  attributes: DeliveryAttributes(orderId: "order_8392"),
+  content: .init(state: .init(status: "preparing"), staleDate: nil),
+  pushType: .token
+)
+await ComRaid.shared.trackActivity(activity, id: "order_8392", type: "delivery")
+
+// Once at launch (AppDelegate), for each attribute type
+await ComRaid.shared.trackRunningActivities(of: DeliveryAttributes.self, type: "delivery") {
+  $0.attributes.orderId
+}
+```
+
+The Contact must be logged in: ComRaid refuses activity tokens from anonymous Subscriptions, so the native SDK waits and sends once they are. Live activities need a native SDK version that includes them (see [Native SDK versions](#native-sdk-versions)).
+
+#### `listActivities(): Promise<LiveActivity[]>`
+
+Live activities running on this device, as `{ id, type }`. iOS lists the ones your app passed to `trackActivity`; Android lists the live updates that are showing. A finished activity is not listed.
+
+#### `endActivity(id: string): Promise<boolean>`
+
+End a Live activity from the app. It disappears at once and ComRaid is told it ended on this device, so the server stops sending to it; the activity goes on for the Contact's other devices until your server ends it. Resolves `false` when it is not running. Rejects with a `TypeError` for an empty id.
+
 ### Local schedule and timers
 
 Local notifications only — not server **Message** / **Campaign** sends. Prefer ComRaid schedule APIs over Expo `Notifications.scheduleNotificationAsync` when using this package.
@@ -381,7 +490,12 @@ Exported from `@comraid/react-native` (see `src/index.ts`):
 | `ScheduleOptions` / `TimerOptions` | `schedule` / `startTimer` input |
 | `ScheduleResult` / `PendingSchedule` | Schedule outputs |
 | `Timer` / `TimerState` | Timer pause/resume/list outputs |
+| `LiveActivity` | A running Live activity: `id` (your activity id) and `type` |
 | `SchedulePrecision` / `FallbackPolicy` / `APNsEnvironment` | Enumerated string unions |
+| `InAppMessage` | An In-app message: `id`, `layout`, `title`, `body`, `imageUrl`, `buttons`, display window (`startAt`, `endAt` as `Date`) and `isTest` |
+| `InAppButton` | `id`, `label` and optional `deepLink` (your app routes it) |
+| `InAppLayout` | `'modal' \| 'banner_top' \| 'banner_bottom' \| 'fullscreen'` |
+| `InAppMessageHandle` / `InAppMessagePresenter` / `InAppMessageListener` | Report outcomes, draw messages yourself, observe messages |
 
 ### `RemoteMessage`
 
@@ -520,6 +634,8 @@ Pinned release coords (match Android/iOS `0.1.0`):
 | iOS | `ComRaid ~> 0.1.0` (`ReactNativeComraid.podspec`) |
 
 `android/build.gradle` resolves through `mavenLocal()` then Maven Central. The Expo config plugin also injects `mavenLocal()` into the host `allprojects.repositories` block. Direct `includeBuild` of `comraid-android` is not supported against Expo’s AGP (SDK ships AGP 9; Expo apps use 8.x) — use mavenLocal instead.
+
+> **Live activities need a native SDK version that includes them.** The default pins above predate Live activities: until the next Android and iOS SDK releases are published, use the local override below or the bridge will not compile against the older SDKs.
 
 ### Local override (development)
 

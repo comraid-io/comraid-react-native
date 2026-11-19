@@ -15,6 +15,11 @@ import com.comraid.android.ComRaidNotification
 import com.comraid.android.ComRaidScheduleRequest
 import com.comraid.android.DeviceProperties
 import com.comraid.android.FallbackPolicy
+import com.comraid.android.InAppButton
+import com.comraid.android.InAppMessage
+import com.comraid.android.InAppMessageHandle
+import com.comraid.android.InAppMessageListener
+import com.comraid.android.InAppMessagePresenter
 import com.comraid.android.RemoteMessageAction
 import com.comraid.android.RemoteMessageEvent
 import com.comraid.android.RemoteMessageListener
@@ -30,6 +35,7 @@ import com.facebook.react.modules.core.PermissionAwareActivity
 import com.facebook.react.modules.core.PermissionListener
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
 
 class ComraidModule(private val reactContext: ReactApplicationContext) :
   NativeComraidSpec(reactContext), PermissionListener, ActivityEventListener {
@@ -48,6 +54,29 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
   }
   private val tokenListener = TokenRefreshListener { token ->
     emit(EVENT_TOKEN_REFRESH, Arguments.createMap().apply { putString("token", token) })
+  }
+
+  /** Handles for messages the JS presenter was asked to draw, until it reports them dismissed. */
+  private val inAppHandles = ConcurrentHashMap<String, InAppMessageHandle>()
+
+  private val inAppListener = object : InAppMessageListener {
+    override fun willDisplay(message: InAppMessage) = emitInApp("willDisplay", message, null)
+    override fun didDisplay(message: InAppMessage) = emitInApp("didDisplay", message, null)
+    override fun willDismiss(message: InAppMessage) = emitInApp("willDismiss", message, null)
+    override fun didDismiss(message: InAppMessage) = emitInApp("didDismiss", message, null)
+    override fun didClick(message: InAppMessage, button: InAppButton) = emitInApp("didClick", message, button)
+  }
+
+  /** Hands each message to JS instead of drawing it; JS reports outcomes back by message id. */
+  private val inAppPresenter = InAppMessagePresenter { message, handle, triggers ->
+    inAppHandles[message.id] = handle
+    emit(
+      EVENT_IN_APP_PRESENT,
+      Arguments.createMap().apply {
+        putMap("message", inAppMessageMap(message))
+        putMap("triggers", stringMap(triggers))
+      },
+    )
   }
 
   override fun initialize() {
@@ -268,6 +297,23 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     null
   }
 
+  override fun endActivity(id: String, promise: Promise) = resolve(promise) {
+    ComRaid.endLiveActivity(id)
+  }
+
+  override fun listActivities(promise: Promise) = resolve(promise) {
+    Arguments.createArray().apply {
+      ComRaid.liveActivities().forEach { activity ->
+        pushMap(
+          Arguments.createMap().apply {
+            putString("id", activity.id)
+            putString("type", activity.type)
+          },
+        )
+      }
+    }
+  }
+
   override fun getToken(promise: Promise) = resolve(promise) {
     ComRaid.getToken()
   }
@@ -283,6 +329,74 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
 
   override fun setBackgroundHandlerRegistered(registered: Boolean, promise: Promise) = resolve(promise) {
     ComRaid.setBackgroundHandlerRegistered(registered)
+    null
+  }
+
+  // ---- In-app messages: thin forwards to the Android SDK ----
+
+  override fun addTrigger(key: String, value: String, promise: Promise) = resolve(promise) {
+    ComRaid.addTrigger(key, value)
+    null
+  }
+
+  override fun addTriggers(triggersJson: String, promise: Promise) = resolve(promise) {
+    val json = JSONObject(triggersJson)
+    ComRaid.addTriggers(buildMap { json.keys().forEach { key -> put(key, json.getString(key)) } })
+    null
+  }
+
+  override fun removeTrigger(key: String, promise: Promise) = resolve(promise) {
+    ComRaid.removeTrigger(key)
+    null
+  }
+
+  override fun clearTriggers(promise: Promise) = resolve(promise) {
+    ComRaid.clearTriggers()
+    null
+  }
+
+  override fun getTriggers(promise: Promise) = resolve(promise) {
+    stringMap(ComRaid.getTriggers())
+  }
+
+  override fun setInAppMessagesPaused(paused: Boolean, promise: Promise) = resolve(promise) {
+    ComRaid.setInAppMessagesPaused(paused)
+    null
+  }
+
+  override fun isInAppMessagesPaused(promise: Promise) = resolve(promise) {
+    ComRaid.isInAppMessagesPaused()
+  }
+
+  override fun optOutInApp(promise: Promise) = resolve(promise) {
+    ComRaid.optOutInApp()
+    null
+  }
+
+  override fun optInInApp(promise: Promise) = resolve(promise) {
+    ComRaid.optInInApp()
+    null
+  }
+
+  override fun setInAppMessagePresenterEnabled(enabled: Boolean, promise: Promise) = resolve(promise) {
+    ComRaid.setInAppMessagePresenter(if (enabled) inAppPresenter else null)
+    // Messages already handed to a presenter that is now gone will never be reported.
+    if (!enabled) inAppHandles.clear()
+    null
+  }
+
+  override fun inAppImpression(messageId: String, promise: Promise) = resolve(promise) {
+    inAppHandles[messageId]?.impression()
+    null
+  }
+
+  override fun inAppClicked(messageId: String, buttonId: String, promise: Promise) = resolve(promise) {
+    inAppHandles[messageId]?.clicked(buttonId)
+    null
+  }
+
+  override fun inAppDismissed(messageId: String, promise: Promise) = resolve(promise) {
+    inAppHandles.remove(messageId)?.dismissed()
     null
   }
 
@@ -407,6 +521,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     ComRaid.addBackgroundMessageListener(backgroundListener)
     ComRaid.addNotificationOpenedListener(openedListener)
     ComRaid.addTokenRefreshListener(tokenListener)
+    ComRaid.addInAppMessageListener(inAppListener)
   }
 
   private fun detachNativeListeners() {
@@ -416,6 +531,47 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     ComRaid.removeBackgroundMessageListener(backgroundListener)
     ComRaid.removeNotificationOpenedListener(openedListener)
     ComRaid.removeTokenRefreshListener(tokenListener)
+    ComRaid.removeInAppMessageListener(inAppListener)
+    // A presenter outliving its JS side would hand every message to nobody and draw none.
+    ComRaid.setInAppMessagePresenter(null)
+    inAppHandles.clear()
+  }
+
+  private fun emitInApp(type: String, message: InAppMessage, button: InAppButton?) {
+    emit(
+      EVENT_IN_APP_LIFECYCLE,
+      Arguments.createMap().apply {
+        putString("type", type)
+        putMap("message", inAppMessageMap(message))
+        if (button != null) putMap("button", inAppButtonMap(button))
+      },
+    )
+  }
+
+  /** The wire shape the JS layer parses. Window instants are epoch milliseconds. */
+  private fun inAppMessageMap(message: InAppMessage): WritableMap = Arguments.createMap().apply {
+    putString("id", message.id)
+    putString("layout", message.layout.wire)
+    putString("title", message.title)
+    putString("body", message.body)
+    message.imageUrl?.let { putString("imageUrl", it) }
+    putArray(
+      "buttons",
+      Arguments.createArray().apply { message.buttons.forEach { pushMap(inAppButtonMap(it)) } },
+    )
+    message.startAtMillis?.let { putDouble("startAt", it.toDouble()) }
+    message.endAtMillis?.let { putDouble("endAt", it.toDouble()) }
+    putBoolean("isTest", message.isTest)
+  }
+
+  private fun inAppButtonMap(button: InAppButton): WritableMap = Arguments.createMap().apply {
+    putString("id", button.id)
+    putString("label", button.label)
+    button.deepLink?.let { putString("deepLink", it) }
+  }
+
+  private fun stringMap(values: Map<String, String>): WritableMap = Arguments.createMap().apply {
+    values.forEach { (key, value) -> putString(key, value) }
   }
 
   private fun emit(eventName: String, payload: WritableMap) {
@@ -580,5 +736,7 @@ class ComraidModule(private val reactContext: ReactApplicationContext) :
     private const val EVENT_BACKGROUND_MESSAGE = "comraid_background_message"
     private const val EVENT_NOTIFICATION_OPENED = "comraid_notification_opened"
     private const val EVENT_TOKEN_REFRESH = "comraid_token_refresh"
+    private const val EVENT_IN_APP_PRESENT = "comraid_in_app_present"
+    private const val EVENT_IN_APP_LIFECYCLE = "comraid_in_app_lifecycle"
   }
 }
